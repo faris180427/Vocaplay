@@ -1,15 +1,120 @@
 /* ==============================================================
-   VOCAPLAY — ALL 12 INTERACTIVE GAME MODES
+   VOCAPLAY — CORE INTERACTIVE GAMES (5 CLASSIC MODES)
+   1. Fast Vocab + Mystery Reveal 3x3
+   2. Sentence & Grammar Builder
+   3. Acoustic Dictation
+   4. Voice Duel + Speaking Phrases
+   5. Penembak Kata (ZType-Style Canvas Shooter)
    ============================================================== */
 
-/* ---------- 1. FAST VOCAB ---------- */
+/* ---------- PACE MODE (ZEN / ARCADE) & FAST VOCAB + MYSTERY REVEAL ---------- */
+let gamePaceMode = localStorage.getItem('vocaplay_pace') || 'arcade';
+let fastVocabSubmode = 'speed';
+let mysteryRevealInterval = null;
+let mysteryRevealedCount = 0;
+
+function updateGamePaceUI() {
+  const btn = document.getElementById('btn-game-pace');
+  if (!btn) return;
+  const isZen = gamePaceMode === 'zen';
+  btn.textContent = isZen ? 'Zen' : 'Arcade';
+  btn.className = isZen
+    ? 'tactile-btn px-2 py-1 rounded-lg bg-emerald-500/15 border border-emerald-400/40 font-mono text-[10px] font-bold text-emerald-400'
+    : 'tactile-btn px-2 py-1 rounded-lg app-subsurface border border-slate-200 font-mono text-[10px] font-bold text-sky-400 hover:border-sky-400';
+}
+
+function toggleGamePaceMode() {
+  playSfx('click');
+  gamePaceMode = gamePaceMode === 'zen' ? 'arcade' : 'zen';
+  localStorage.setItem('vocaplay_pace', gamePaceMode);
+  updateGamePaceUI();
+  showToast(gamePaceMode === 'zen' ? 'Mode Santai (Zen): Tanpa tekanan timer' : 'Mode Cepat (Arcade): Timer & refleks aktif', '✓');
+  if (currentMode === 'fast-vocab' && gamePaceMode === 'zen') {
+    clearInterval(fastVocabTimerInterval);
+    const bar = document.getElementById('fast-vocab-timer-bar');
+    if (bar) bar.style.width = '100%';
+  }
+}
+
+function setFastVocabSubmode(mode) {
+  playSfx('click');
+  fastVocabSubmode = mode === 'mystery' ? 'mystery' : 'speed';
+  const tSpeed = document.getElementById('fv-tab-speed');
+  const tMyst = document.getElementById('fv-tab-mystery');
+  if (tSpeed) tSpeed.className = fastVocabSubmode === 'speed' ? 'tactile-btn px-3 py-1 rounded-xl bg-sky-500 text-white font-bold text-[11px]' : 'tactile-btn px-3 py-1 rounded-xl app-subsurface border border-slate-700/60 text-slate-400 hover:text-sky-400 font-semibold text-[11px]';
+  if (tMyst) tMyst.className = fastVocabSubmode === 'mystery' ? 'tactile-btn px-3 py-1 rounded-xl bg-amber-500 text-slate-950 font-bold text-[11px]' : 'tactile-btn px-3 py-1 rounded-xl app-subsurface border border-slate-700/60 text-slate-400 hover:text-sky-400 font-semibold text-[11px]';
+  roundNumber = Math.max(0, roundNumber - 1);
+  nextFastVocabRound();
+}
+
+function setupMysteryRevealBox(item) {
+  clearInterval(mysteryRevealInterval);
+  mysteryRevealedCount = 0;
+  const under = document.getElementById('mystery-under-content');
+  const tilesGrid = document.getElementById('mystery-tiles-grid');
+  const bonusPill = document.getElementById('mystery-bonus-pill');
+  if (!under || !tilesGrid) return;
+
+  if (hasRealImage(item)) {
+    under.innerHTML = renderWordImgTag(item, 'w-full h-full object-cover rounded-xl');
+  } else {
+    under.innerHTML = `
+      <span class="text-[10px] font-mono uppercase text-sky-400 font-bold">${item.category || 'Vocabulary'} • ${item.cefr || 'A1'}</span>
+      <div class="editorial-serif text-xl font-bold text-white mt-1">${item.word}</div>
+      <div class="text-[11px] text-slate-400 mt-1 line-clamp-2">${item.definition || ''}</div>
+    `;
+  }
+
+  tilesGrid.innerHTML = '';
+  const tiles = [];
+  for (let i = 0; i < 9; i++) {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'bg-slate-800/95 hover:bg-slate-700 border border-slate-700/70 rounded-md flex items-center justify-center font-mono text-[10px] text-slate-500 transition-opacity duration-300';
+    tile.textContent = '?';
+    tile.onclick = () => revealMysteryTile(tile);
+    tilesGrid.appendChild(tile);
+    tiles.push(tile);
+  }
+
+  const updateBonus = () => {
+    const pts = Math.max(80, 200 - mysteryRevealedCount * 15);
+    if (bonusPill) bonusPill.textContent = `Bonus: +${pts} pts`;
+  };
+  const revealMysteryTile = (t) => {
+    if (!t || t.dataset.open === '1') return;
+    t.dataset.open = '1';
+    t.classList.add('opacity-0', 'pointer-events-none');
+    mysteryRevealedCount++;
+    updateBonus();
+  };
+  updateBonus();
+
+  // Buka 1 kotak awal langsung + 1 kotak tiap 1.4 detik
+  const order = tiles.slice().sort(() => 0.5 - Math.random());
+  revealMysteryTile(order.pop());
+  mysteryRevealInterval = setInterval(() => {
+    const next = order.find(t => t.dataset.open !== '1');
+    if (next) revealMysteryTile(next);
+    else clearInterval(mysteryRevealInterval);
+  }, 1400);
+}
+
 function nextFastVocabRound() {
   clearInterval(fastVocabTimerInterval);
+  clearInterval(mysteryRevealInterval);
+  updateGamePaceUI();
   const pool = getFilteredVocab();
   currentItem = drawNextWord(pool);
   if (!currentItem) return;
   roundNumber++;
   updateRoundProgressUI();
+
+  const speedHdr = document.getElementById('fv-speed-header');
+  const mystBox = document.getElementById('mystery-reveal-box');
+  if (speedHdr) speedHdr.classList.toggle('hidden', fastVocabSubmode === 'mystery');
+  if (mystBox) mystBox.classList.toggle('hidden', fastVocabSubmode !== 'mystery');
+  if (fastVocabSubmode === 'mystery') setupMysteryRevealBox(currentItem);
 
   const distractorSource = pool.length >= 4 ? pool : VOCAB_DATA;
   const otherCards = distractorSource.filter(i => i.id !== currentItem.id).sort(() => 0.5 - Math.random()).slice(0, 3);
@@ -21,7 +126,7 @@ function nextFastVocabRound() {
     const card = document.createElement('button');
     card.dataset.wordId = choice.id;
     card.style.animationDelay = `${idx * 40}ms`;
-    if (hasRealImage(choice)) {
+    if (hasRealImage(choice) && fastVocabSubmode !== 'mystery') {
       card.className = 'animate-fade-in tactile-btn fast-vocab-card h-40 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-between p-2.5 transition hover:border-indigo-400 focus-ring overflow-hidden shadow-xs';
       card.innerHTML = `
         <div class="w-full h-24 lexical-img-frame mb-1.5">${renderWordImgTag(choice)}</div>
@@ -31,7 +136,7 @@ function nextFastVocabRound() {
         </div>
       `;
     } else {
-      card.className = 'animate-fade-in tactile-btn fast-vocab-card app-surface h-32 border border-slate-200 rounded-2xl flex flex-col items-center justify-between p-3.5 transition hover:border-sky-400 focus-ring shadow-xs text-center';
+      card.className = 'animate-fade-in tactile-btn fast-vocab-card app-surface h-28 border border-slate-200 rounded-2xl flex flex-col items-center justify-between p-3.5 transition hover:border-sky-400 focus-ring shadow-xs text-center';
       card.innerHTML = `
         <div class="w-full flex items-center justify-between">
           <span class="text-[10px] font-mono uppercase text-slate-400 font-bold">${choice.category}</span>
@@ -45,11 +150,13 @@ function nextFastVocabRound() {
     grid.appendChild(card);
   });
 
-  speakText(currentItem.word, 0.88);
+  speakText(currentItem.word);
   const baseDuration = (CEFR_CONFIG[currentItem.cefr] || CEFR_CONFIG.A1).timerSec;
   fastVocabTimeLeft = baseDuration;
   const bar = document.getElementById('fast-vocab-timer-bar');
   bar.style.width = '100%';
+
+  if (gamePaceMode === 'zen' || fastVocabSubmode === 'mystery') return;
 
   fastVocabTimerInterval = setInterval(() => {
     fastVocabTimeLeft -= 0.05;
@@ -57,7 +164,7 @@ function nextFastVocabRound() {
     if (fastVocabTimeLeft <= 0) {
       clearInterval(fastVocabTimerInterval);
       handleMistake(currentItem);
-      showToast(`Time up: "${currentItem.word}"`, '⏰');
+      showToast(`Waktu habis: "${currentItem.word}"`, '!');
       highlightFastVocabCorrect();
       advanceOrFinishRound(nextFastVocabRound, 1100);
     }
@@ -66,12 +173,17 @@ function nextFastVocabRound() {
 
 function handleFastVocabChoice(selected, cardEl) {
   clearInterval(fastVocabTimerInterval);
+  clearInterval(mysteryRevealInterval);
   document.querySelectorAll('.fast-vocab-card').forEach(c => c.disabled = true);
+  if (fastVocabSubmode === 'mystery') {
+    document.querySelectorAll('#mystery-tiles-grid button').forEach(t => t.classList.add('opacity-0', 'pointer-events-none'));
+  }
   if (selected.id === currentItem.id) {
     cardEl.classList.add('border-emerald-500', 'bg-emerald-500/15', 'pop-success');
-    addSuccessScore(100);
-    showToast(`Matched: ${currentItem.word}`, '✓');
-    advanceOrFinishRound(nextFastVocabRound, 650);
+    const pts = fastVocabSubmode === 'mystery' ? Math.max(80, 200 - mysteryRevealedCount * 15) : 100;
+    addSuccessScore(pts);
+    showToast(`Cocok: ${currentItem.word}`, '✓');
+    advanceOrFinishRound(nextFastVocabRound, 700);
   } else {
     cardEl.classList.add('border-rose-500', 'bg-rose-500/15', 'shake-anim');
     handleMistake(currentItem);
@@ -86,129 +198,74 @@ function highlightFastVocabCorrect() {
   });
 }
 
-/* ---------- 2. WORD SPELLER ---------- */
-let spellerTargetLetters = [];
-let spellerConstructedWord = [];
-let spellerTileButtons = [];
-
-function nextWordSpellerRound() {
-  currentItem = drawNextWord(getFilteredVocab());
-  if (!currentItem) return;
-  roundNumber++;
-  updateRoundProgressUI();
-
-  spellerTargetLetters = currentItem.word.toLowerCase().split('');
-  spellerConstructedWord = [];
-
-  setOptionalImageFrame('speller-image-frame', currentItem);
-  document.getElementById('speller-phonetic-text').textContent = currentItem.phonetic || `/${currentItem.word}/`;
-  document.getElementById('speller-meaning-text').textContent = `"${currentItem.definition || currentItem.meaning}"`;
-  speakText(currentItem.word, 0.88);
-
-  let distractors;
-  if (currentItem.distractors && currentItem.distractors.length) {
-    distractors = (currentItem.distractors || []).slice(0, currentItem.cefr === 'C1' ? 4 : 2);
-  } else {
-    const wordLetters = new Set(spellerTargetLetters);
-    const pool = 'abcdefghijklmnopqrstuvwxyz'.split('').filter(c => !wordLetters.has(c));
-    const count = currentItem.cefr === 'C1' ? 4 : currentItem.cefr === 'B2' ? 3 : 2;
-    distractors = pool.sort(() => 0.5 - Math.random()).slice(0, count);
-  }
-
-  spellerTileButtons = [...spellerTargetLetters, ...distractors]
-    .map((char, idx) => ({ id: `tile_${idx}`, char, used: false }))
-    .sort(() => 0.5 - Math.random());
-  renderSpellerSlotsAndTiles();
-}
-
-function renderSpellerSlotsAndTiles() {
-  const slots = document.getElementById('speller-target-slots');
-  slots.innerHTML = '';
-  for (let i = 0; i < spellerTargetLetters.length; i++) {
-    const slot = document.createElement('div');
-    slot.className = 'w-9 h-11 rounded-lg border flex items-center justify-center font-bold text-base uppercase transition font-mono';
-    if (i < spellerConstructedWord.length) {
-      slot.className += ' bg-white border-blue-600 text-blue-700 shadow-xs cursor-pointer hover:bg-slate-50 pop-success';
-      slot.textContent = spellerConstructedWord[i].char;
-      slot.onclick = () => removeSpellerTileAt(i);
-    } else {
-      slot.className += ' bg-white border-slate-200 text-slate-300';
-      slot.textContent = '·';
-    }
-    slots.appendChild(slot);
-  }
-
-  const deck = document.getElementById('speller-letter-deck');
-  deck.innerHTML = '';
-  spellerTileButtons.forEach(tile => {
-    const btn = document.createElement('button');
-    btn.className = `tactile-btn w-9 h-11 rounded-lg font-bold text-base font-mono uppercase transition ${tile.used ? 'bg-slate-100 text-slate-300 border border-slate-200 cursor-not-allowed' : 'bg-white hover:border-slate-400 text-slate-800 border border-slate-200 shadow-xs'}`;
-    btn.textContent = tile.char;
-    btn.disabled = tile.used;
-    btn.onclick = () => handleSpellerTileClick(tile);
-    deck.appendChild(btn);
-  });
-}
-
-function handleSpellerTileClick(tile) {
-  if (tile.used || spellerConstructedWord.length >= spellerTargetLetters.length) return;
-  playSfx('click');
-  tile.used = true;
-  spellerConstructedWord.push(tile);
-  renderSpellerSlotsAndTiles();
-  if (spellerConstructedWord.length === spellerTargetLetters.length) verifySpellerAnswer();
-}
-
-function removeSpellerTileAt(idx) {
-  playSfx('click');
-  const t = spellerConstructedWord.splice(idx, 1)[0];
-  if (t) t.used = false;
-  renderSpellerSlotsAndTiles();
-}
-
-function verifySpellerAnswer() {
-  const ans = spellerConstructedWord.map(t => t.char).join('');
-  if (ans === spellerTargetLetters.join('')) {
-    addSuccessScore(120);
-    showToast(`Correct: "${currentItem.word}"`, '✓');
-    speakText(currentItem.word, 0.88);
-    advanceOrFinishRound(nextWordSpellerRound, 900);
-  } else {
-    handleMistake(currentItem);
-    showToast('Orthography mismatch.', '✕');
-    const slots = document.getElementById('speller-target-slots');
-    slots.classList.add('shake-anim');
-    setTimeout(() => slots.classList.remove('shake-anim'), 350);
-  }
-}
-
-function useSpellerHint() {
-  playSfx('click');
-  const idx = spellerConstructedWord.length;
-  if (idx >= spellerTargetLetters.length) return;
-  const needed = spellerTargetLetters[idx];
-  const tile = spellerTileButtons.find(t => !t.used && t.char === needed);
-  if (tile) {
-    tile.used = true;
-    spellerConstructedWord.push(tile);
-    score = Math.max(0, score - 20);
-    updateHeaderStats();
-    renderSpellerSlotsAndTiles();
-    if (spellerConstructedWord.length === spellerTargetLetters.length) verifySpellerAnswer();
-  }
-}
-
-function resetSpellerCurrentRound() {
-  playSfx('click');
-  spellerConstructedWord = [];
-  spellerTileButtons.forEach(t => t.used = false);
-  renderSpellerSlotsAndTiles();
-}
-
-/* ---------- 3. SENTENCE BUILDER ---------- */
+/* ---------- 2. SENTENCE & GRAMMAR BUILDER ---------- */
 let sentenceOriginalTokens = [];
 let sentenceAvailableTokens = [];
 let sentencePlacedTokens = [];
+let activeGrammarTopic = 'deck';
+
+const GRAMMAR_TOPIC_BANKS = {
+  is_are: [
+    { id: 'gr_ia1', word: 'is', cefr: 'A1', category: 'Grammar', sentence: ['She', 'is', 'a very', 'talented', 'engineer'], sentenceIndo: 'Dia adalah seorang insinyur yang sangat berbakat.' },
+    { id: 'gr_ia2', word: 'are', cefr: 'A1', category: 'Grammar', sentence: ['They', 'are', 'studying', 'English', 'together'], sentenceIndo: 'Mereka sedang belajar bahasa Inggris bersama.' },
+    { id: 'gr_ia3', word: 'is', cefr: 'A1', category: 'Grammar', sentence: ['The coffee', 'is', 'still', 'very hot'], sentenceIndo: 'Kopinya masih sangat panas.' },
+    { id: 'gr_ia4', word: 'are', cefr: 'A1', category: 'Grammar', sentence: ['My keys', 'are', 'on the', 'wooden table'], sentenceIndo: 'Kunci saya ada di atas meja kayu.' }
+  ],
+  have_has: [
+    { id: 'gr_hh1', word: 'has', cefr: 'A1', category: 'Grammar', sentence: ['He', 'has', 'an important', 'meeting', 'today'], sentenceIndo: 'Dia memiliki rapat penting hari ini.' },
+    { id: 'gr_hh2', word: 'have', cefr: 'A1', category: 'Grammar', sentence: ['We', 'have', 'finished', 'our', 'project'], sentenceIndo: 'Kami sudah menyelesaikan proyek kami.' },
+    { id: 'gr_hh3', word: 'has', cefr: 'A2', category: 'Grammar', sentence: ['This city', 'has', 'a modern', 'train system'], sentenceIndo: 'Kota ini memiliki sistem kereta yang modern.' },
+    { id: 'gr_hh4', word: 'have', cefr: 'A1', category: 'Grammar', sentence: ['I', 'have', 'two cups', 'of tea', 'every day'], sentenceIndo: 'Saya minum dua cangkir teh setiap hari.' }
+  ],
+  past: [
+    { id: 'gr_pt1', word: 'visited', cefr: 'A2', category: 'Grammar', sentence: ['We', 'visited', 'the science', 'museum', 'yesterday'], sentenceIndo: 'Kami mengunjungi museum sains kemarin.' },
+    { id: 'gr_pt2', word: 'bought', cefr: 'A2', category: 'Grammar', sentence: ['She', 'bought', 'a new', 'laptop', 'last week'], sentenceIndo: 'Dia membeli laptop baru minggu lalu.' },
+    { id: 'gr_pt3', word: 'went', cefr: 'A2', category: 'Grammar', sentence: ['They', 'went', 'to Bali', 'by plane'], sentenceIndo: 'Mereka pergi ke Bali naik pesawat.' },
+    { id: 'gr_pt4', word: 'wrote', cefr: 'B1', category: 'Grammar', sentence: ['He', 'wrote', 'a clear', 'report', 'last night'], sentenceIndo: 'Dia menulis laporan yang jelas tadi malam.' }
+  ],
+  can: [
+    { id: 'gr_cn1', word: 'can', cefr: 'A1', category: 'Grammar', sentence: ['She', 'can', 'speak', 'three', 'languages'], sentenceIndo: 'Dia bisa berbicara tiga bahasa.' },
+    { id: 'gr_cn2', word: 'cannot', cefr: 'A1', category: 'Grammar', sentence: ['I', 'cannot', 'find', 'my wallet', 'anywhere'], sentenceIndo: 'Saya tidak bisa menemukan dompet saya di mana pun.' },
+    { id: 'gr_cn3', word: 'can', cefr: 'A2', category: 'Grammar', sentence: ['Can you', 'explain', 'this rule', 'again?'], sentenceIndo: 'Bisakah kamu menjelaskan aturan ini lagi?' },
+    { id: 'gr_cn4', word: 'can', cefr: 'B1', category: 'Grammar', sentence: ['We', 'can', 'solve', 'this problem', 'faster'], sentenceIndo: 'Kita bisa menyelesaikan masalah ini lebih cepat.' }
+  ],
+  routines: [
+    { id: 'gr_rt1', word: 'wake', cefr: 'A1', category: 'Routines', sentence: ['I usually', 'wake up', 'at six', 'every morning'], sentenceIndo: 'Saya biasanya bangun pukul enam setiap pagi.' },
+    { id: 'gr_rt2', word: 'chef', cefr: 'A2', category: 'Jobs', sentence: ['A chef', 'cooks', 'delicious meals', 'in a restaurant'], sentenceIndo: 'Seorang koki memasak makanan lezat di restoran.' },
+    { id: 'gr_rt3', word: 'doctor', cefr: 'A1', category: 'Jobs', sentence: ['A doctor', 'helps', 'sick people', 'at the hospital'], sentenceIndo: 'Seorang dokter membantu orang sakit di rumah sakit.' },
+    { id: 'gr_rt4', word: 'brush', cefr: 'A1', category: 'Routines', sentence: ['She', 'brushes', 'her teeth', 'before sleeping'], sentenceIndo: 'Dia menyikat giginya sebelum tidur.' }
+  ]
+};
+
+const GRAMMAR_TOPIC_LABELS = [
+  { id: 'deck', label: 'Dek Aktif' },
+  { id: 'is_are', label: 'Is / Are' },
+  { id: 'have_has', label: 'Have / Has' },
+  { id: 'past', label: 'Past Tense' },
+  { id: 'can', label: 'Can / Can\'t' },
+  { id: 'routines', label: 'Routines & Jobs' }
+];
+
+function renderGrammarTopicPills() {
+  const box = document.getElementById('grammar-topic-pills');
+  if (!box) return;
+  box.innerHTML = '';
+  GRAMMAR_TOPIC_LABELS.forEach(t => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = t.id === activeGrammarTopic
+      ? 'tactile-btn px-2.5 py-1 rounded-xl bg-emerald-600 text-white font-bold text-[11px]'
+      : 'tactile-btn px-2.5 py-1 rounded-xl app-subsurface border border-slate-700/60 text-slate-400 hover:text-sky-400 font-semibold text-[11px]';
+    btn.textContent = t.label;
+    btn.onclick = () => {
+      playSfx('click');
+      activeGrammarTopic = t.id;
+      roundNumber = Math.max(0, roundNumber - 1);
+      nextSentenceBuilderRound();
+    };
+    box.appendChild(btn);
+  });
+}
 
 function isCleanSentence(v) {
   if (!Array.isArray(v.sentence) || v.sentence.length < 2) return false;
@@ -217,13 +274,19 @@ function isCleanSentence(v) {
 }
 
 function nextSentenceBuilderRound() {
-  const rawPool = getFilteredVocab();
-  let sentencePool = rawPool.filter(isCleanSentence);
-  if (!sentencePool.length) {
-    sentencePool = rawPool.filter(v => Array.isArray(v.sentence) && v.sentence.length >= 2);
-  }
-  if (!sentencePool.length) {
-    sentencePool = VOCAB_DATA.filter(isCleanSentence);
+  renderGrammarTopicPills();
+  let sentencePool = [];
+  if (activeGrammarTopic !== 'deck' && GRAMMAR_TOPIC_BANKS[activeGrammarTopic]) {
+    sentencePool = GRAMMAR_TOPIC_BANKS[activeGrammarTopic];
+  } else {
+    const rawPool = getFilteredVocab();
+    sentencePool = rawPool.filter(isCleanSentence);
+    if (!sentencePool.length) {
+      sentencePool = rawPool.filter(v => Array.isArray(v.sentence) && v.sentence.length >= 2);
+    }
+    if (!sentencePool.length) {
+      sentencePool = VOCAB_DATA.filter(isCleanSentence);
+    }
   }
   currentItem = drawNextWord(sentencePool);
   if (!currentItem) return;
@@ -291,213 +354,7 @@ function checkSentenceSolution() {
   }
 }
 
-/* ---------- 4. MEMORY FLIP ---------- */
-let flippedCards = [];
-let matchedPairsCount = 0;
-let totalPairsNeeded = 4;
-
-function initMemoryFlipGame() {
-  const pool = getFilteredVocab();
-  roundNumber++;
-  updateRoundProgressUI();
-
-  const pairCount = 4;
-  const selected = [];
-  for (let i = 0; i < Math.min(pairCount, pool.length); i++) {
-    const w = drawNextWord(pool);
-    if (w && !selected.some(s => s.id === w.id)) selected.push(w);
-  }
-  totalPairsNeeded = selected.length;
-  matchedPairsCount = 0;
-  flippedCards = [];
-  document.getElementById('memory-pairs-count').textContent = `0 / ${totalPairsNeeded}`;
-
-  const deck = [];
-  selected.forEach((item, idx) => {
-    deck.push({ uid: `t_${idx}`, pairId: item.id, type: 'text', item });
-    deck.push({ uid: `i_${idx}`, pairId: item.id, type: 'image', item });
-  });
-  deck.sort(() => 0.5 - Math.random());
-
-  const grid = document.getElementById('memory-cards-grid');
-  grid.innerHTML = '';
-  deck.forEach(card => {
-    const el = document.createElement('div');
-    el.className = 'tactile-btn memory-card-item h-28 bg-white border border-slate-200 rounded-2xl flex items-center justify-center cursor-pointer transition shadow-xs text-center p-2 overflow-hidden';
-    el.innerHTML = `<span class="code-font text-xs font-bold text-slate-400">?</span>`;
-    el.onclick = () => handleMemoryCardClick(card, el);
-    grid.appendChild(el);
-  });
-}
-
-function handleMemoryCardClick(card, el) {
-  if (flippedCards.length >= 2 || el.dataset.matched === 'true' || flippedCards.some(f => f.card.uid === card.uid)) return;
-  playSfx('click');
-  el.classList.add('bg-slate-50', 'border-slate-400', 'card-flip-in');
-  if (card.type === 'image') {
-    if (hasRealImage(card.item)) {
-      el.innerHTML = `<div class="w-full h-full lexical-img-frame">${renderWordImgTag(card.item)}</div>`;
-    } else {
-      el.innerHTML = `<div class="flex flex-col items-center justify-center px-1.5"><span class="text-[9px] font-mono uppercase text-sky-400 font-bold mb-0.5">${card.item.category}</span><span class="text-[11px] font-semibold text-slate-800 line-clamp-3 leading-tight">${getShortMeaning(card.item, 48)}</span></div>`;
-    }
-  } else {
-    el.innerHTML = `<span class="code-font text-xs font-bold text-slate-900">${card.item.word}</span>`;
-    currentItem = card.item;
-    speakText(card.item.word, 0.88);
-  }
-  flippedCards.push({ card, el });
-
-  if (flippedCards.length === 2) {
-    const [a, b] = flippedCards;
-    if (a.card.pairId === b.card.pairId) {
-      a.el.dataset.matched = 'true';
-      b.el.dataset.matched = 'true';
-      a.el.className = 'tactile-btn memory-card-item h-28 bg-emerald-50 border-2 border-emerald-500 rounded-2xl flex items-center justify-center text-center p-2 overflow-hidden pop-success';
-      b.el.className = 'tactile-btn memory-card-item h-28 bg-emerald-50 border-2 border-emerald-500 rounded-2xl flex items-center justify-center text-center p-2 overflow-hidden pop-success';
-      currentItem = a.card.item;
-      matchedPairsCount++;
-      document.getElementById('memory-pairs-count').textContent = `${matchedPairsCount} / ${totalPairsNeeded}`;
-      addSuccessScore(130);
-      flippedCards = [];
-      if (matchedPairsCount >= totalPairsNeeded) {
-        triggerConfetti();
-        advanceOrFinishRound(initMemoryFlipGame, 900);
-      }
-    } else {
-      setTimeout(() => {
-        a.el.className = 'tactile-btn memory-card-item h-28 bg-white border border-slate-200 rounded-2xl flex items-center justify-center cursor-pointer transition shadow-xs text-center p-2 overflow-hidden';
-        b.el.className = 'tactile-btn memory-card-item h-28 bg-white border border-slate-200 rounded-2xl flex items-center justify-center cursor-pointer transition shadow-xs text-center p-2 overflow-hidden';
-        a.el.innerHTML = `<span class="code-font text-xs font-bold text-slate-400">?</span>`;
-        b.el.innerHTML = `<span class="code-font text-xs font-bold text-slate-400">?</span>`;
-        handleMistake(a.card.item);
-        flippedCards = [];
-      }, 750);
-    }
-  }
-}
-
-/* ---------- 5. WORD SCRAMBLE ---------- */
-let scrambleTargetWord = '';
-
-function nextWordScrambleRound() {
-  const rawPool = getFilteredVocab();
-  let validPool = rawPool.filter(v => v.word && v.word.trim().length >= 2);
-  if (!validPool.length) validPool = VOCAB_DATA.filter(v => v.word && v.word.trim().length >= 2);
-  currentItem = drawNextWord(validPool);
-  if (!currentItem) return;
-  roundNumber++;
-  updateRoundProgressUI();
-
-  scrambleTargetWord = currentItem.word.toLowerCase();
-  const letters = scrambleTargetWord.split('');
-  let tries = 0;
-  do { letters.sort(() => 0.5 - Math.random()); tries++; } while (letters.join('') === scrambleTargetWord && tries < 10);
-
-  setOptionalImageFrame('scramble-image-frame', currentItem);
-  document.getElementById('scramble-jumbled-word').textContent = letters.join(' ').toUpperCase();
-  document.getElementById('scramble-meaning-clue').textContent = `Definition: ${currentItem.definition}`;
-
-  const input = document.getElementById('scramble-user-input');
-  input.value = '';
-  input.focus();
-}
-
-function checkScrambleAnswer() {
-  const input = document.getElementById('scramble-user-input');
-  const val = input.value.trim().toLowerCase();
-  if (!val) return;
-  if (val === scrambleTargetWord) {
-    speakText(scrambleTargetWord, 0.88);
-    addSuccessScore(140);
-    showToast(`Anagram resolved: ${scrambleTargetWord}`, '✓');
-    advanceOrFinishRound(nextWordScrambleRound, 850);
-  } else {
-    handleMistake(currentItem);
-    showToast('Incorrect anagram transcription.', '✕');
-    input.classList.add('shake-anim', 'border-rose-500');
-    setTimeout(() => input.classList.remove('shake-anim', 'border-rose-500'), 400);
-  }
-}
-
-function useScrambleHint() {
-  if (!scrambleTargetWord) return;
-  playSfx('click');
-  const input = document.getElementById('scramble-user-input');
-  input.value = scrambleTargetWord.slice(0, 2).toUpperCase();
-  score = Math.max(0, score - 15);
-  updateHeaderStats();
-  input.focus();
-}
-
-/* ---------- 6. ODD ONE OUT ---------- */
-function nextOddOneOutRound() {
-  roundNumber++;
-  updateRoundProgressUI();
-
-  const tierPool = currentCEFR === 'ALL' ? VOCAB_DATA : VOCAB_DATA.filter(v => v.cefr === currentCEFR);
-  const byCat = {};
-  VOCAB_DATA.forEach(v => {
-    if (!byCat[v.category]) byCat[v.category] = [];
-    byCat[v.category].push(v);
-  });
-
-  const validCats = Object.keys(byCat).filter(c => byCat[c].length >= 3);
-  const tierCats = validCats.filter(c => tierPool.some(w => w.category === c));
-  const chosenPoolCats = tierCats.length ? tierCats : validCats;
-  const mainCat = chosenPoolCats[Math.floor(Math.random() * chosenPoolCats.length)];
-  const otherCats = Object.keys(byCat).filter(c => c !== mainCat);
-  const otherCat = otherCats[Math.floor(Math.random() * otherCats.length)];
-
-  const mainCandidates = [
-    ...tierPool.filter(v => v.category === mainCat),
-    ...byCat[mainCat].filter(v => !tierPool.some(t => t.id === v.id))
-  ];
-  const mainItems = mainCandidates.slice(0, 6).sort(() => 0.5 - Math.random()).slice(0, 3);
-  const oddCandidates = tierPool.filter(v => v.category === otherCat);
-  const oddPool = oddCandidates.length ? oddCandidates : byCat[otherCat];
-  const oddItem = oddPool[Math.floor(Math.random() * oddPool.length)];
-  currentItem = oddItem;
-
-  const roundItems = [...mainItems, oddItem].sort(() => 0.5 - Math.random());
-  document.getElementById('odd-out-prompt').textContent = `Which item does NOT belong to "${mainCat}"?`;
-
-  const grid = document.getElementById('odd-out-cards-grid');
-  grid.innerHTML = '';
-  roundItems.forEach(item => {
-    const card = document.createElement('button');
-    if (hasRealImage(item)) {
-      card.className = 'animate-fade-in tactile-btn h-36 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-between p-2 transition hover:border-slate-400 focus-ring overflow-hidden shadow-xs';
-      card.innerHTML = `
-        <div class="w-full h-20 lexical-img-frame mb-1">${renderWordImgTag(item)}</div>
-        <span class="text-xs font-bold text-slate-800">${item.word}</span>
-        <span class="text-[10px] text-slate-400 font-mono">${item.cefr}</span>
-      `;
-    } else {
-      card.className = 'animate-fade-in tactile-btn app-surface h-28 border border-slate-200 rounded-2xl flex flex-col items-center justify-center p-3 transition hover:border-sky-400 focus-ring shadow-xs gap-1';
-      card.innerHTML = `
-        <span class="text-sm font-extrabold tracking-tight">${item.word}</span>
-        <span class="text-[10px] text-slate-400 font-mono">${item.phonetic || ('/' + item.word + '/')} • ${item.cefr}</span>
-      `;
-    }
-    card.onclick = () => {
-      grid.querySelectorAll('button').forEach(b => b.disabled = true);
-      if (item.id === oddItem.id) {
-        card.classList.add('border-emerald-500', 'bg-emerald-500/15', 'pop-success');
-        addSuccessScore(120);
-        showToast(`Outlier: "${oddItem.word}" (${oddItem.category})`, '✓');
-        advanceOrFinishRound(nextOddOneOutRound, 850);
-      } else {
-        card.classList.add('border-rose-500', 'bg-rose-500/15', 'shake-anim');
-        handleMistake(oddItem);
-        showToast(`"${item.word}" belongs to ${mainCat}.`, '✕');
-        advanceOrFinishRound(nextOddOneOutRound, 1000);
-      }
-    };
-    grid.appendChild(card);
-  });
-}
-
-/* ---------- 7. ACOUSTIC DICTATION ---------- */
+/* ---------- 3. ACOUSTIC DICTATION ---------- */
 function nextListeningDictationRound() {
   currentItem = drawNextWord(getFilteredVocab());
   if (!currentItem) return;
@@ -534,159 +391,92 @@ function useDictationHint() {
   playSfx('click');
   score = Math.max(0, score - 10);
   updateHeaderStats();
-  showToast(`${currentItem.word.length} letters, starts with "${currentItem.word[0].toUpperCase()}"`, '💡');
+  showToast(`${currentItem.word.length} huruf, diawali "${currentItem.word[0].toUpperCase()}"`, '!');
   document.getElementById('dictation-user-input').focus();
 }
 
-/* ---------- 8. MEANING HUNTER ---------- */
-function nextMeaningHunterRound() {
-  const pool = getFilteredVocab();
-  currentItem = drawNextWord(pool);
-  if (!currentItem) return;
-  roundNumber++;
-  updateRoundProgressUI();
+/* ---------- 4. VOICE DUEL (KATA TUNGGAL & SPEAKING PHRASES) ---------- */
+let voiceDuelSubmode = 'word';
+let voiceDuelTargetPhrase = '';
 
-  const hasSyn = Boolean(currentItem.synonym && currentItem.synonym.trim());
-  const hasAnt = Boolean(currentItem.antonym && currentItem.antonym.trim());
-  const useAntonym = hasAnt && Math.random() > 0.65;
-  const useSynonym = hasSyn && !useAntonym;
-  const useDefMatch = !useAntonym && !useSynonym;
+const SPEAKING_PHRASE_BANK = [
+  { text: 'I usually wake up at seven', indo: 'Saya biasanya bangun jam tujuh.' },
+  { text: 'She is reading a good book', indo: 'Dia sedang membaca buku yang bagus.' },
+  { text: 'Can I have a cup of coffee', indo: 'Bolehkah saya pesan secangkir kopi?' },
+  { text: 'They went to the park yesterday', indo: 'Mereka pergi ke taman kemarin.' },
+  { text: 'We are learning English every day', indo: 'Kami belajar bahasa Inggris setiap hari.' },
+  { text: 'He has an important meeting today', indo: 'Dia memiliki rapat penting hari ini.' }
+];
 
-  const correctChoice = useAntonym
-    ? currentItem.antonym
-    : (useSynonym ? currentItem.synonym : currentItem.meaning);
+function setVoiceDuelSubmode(mode) {
+  playSfx('click');
+  voiceDuelSubmode = mode === 'phrase' ? 'phrase' : 'word';
+  const tWord = document.getElementById('vd-tab-word');
+  const tPhrase = document.getElementById('vd-tab-phrase');
+  if (tWord) tWord.className = voiceDuelSubmode === 'word' ? 'tactile-btn px-3 py-1 rounded-xl bg-sky-500 text-white font-bold text-[11px]' : 'tactile-btn px-3 py-1 rounded-xl app-subsurface border border-slate-700/60 text-slate-400 hover:text-sky-400 font-semibold text-[11px]';
+  if (tPhrase) tPhrase.className = voiceDuelSubmode === 'phrase' ? 'tactile-btn px-3 py-1 rounded-xl bg-fuchsia-600 text-white font-bold text-[11px]' : 'tactile-btn px-3 py-1 rounded-xl app-subsurface border border-slate-700/60 text-slate-400 hover:text-sky-400 font-semibold text-[11px]';
+  roundNumber = Math.max(0, roundNumber - 1);
+  nextVoiceDuelRound();
+}
 
-  document.getElementById('hunter-relation-type').textContent = useAntonym
-    ? 'Find Antonym (Opposite)'
-    : (useDefMatch ? 'Match Meaning (Bahasa Indonesia)' : 'Find Synonym (Similar)');
-  document.getElementById('hunter-target-word').textContent = currentItem.word;
-  document.getElementById('hunter-target-meaning').textContent = useDefMatch
-    ? `${currentItem.phonetic || ('/' + currentItem.word + '/')} • ${currentItem.category || 'General'}`
-    : `"${currentItem.definition || currentItem.meaning}"`;
-
-  const otherSource = pool.length >= 4 ? pool : VOCAB_DATA;
-  const distractors = [];
-  const usedTexts = new Set([String(correctChoice).toLowerCase()]);
-  for (let i = 0; i < 24 && distractors.length < 3; i++) {
-    const candidate = otherSource[Math.floor(Math.random() * otherSource.length)];
-    if (!candidate || candidate.id === currentItem.id) continue;
-    const text = useAntonym
-      ? (candidate.antonym || candidate.synonym || candidate.meaning)
-      : (useDefMatch ? candidate.meaning : (candidate.synonym || candidate.meaning));
-    if (text && !usedTexts.has(text.toLowerCase())) {
-      usedTexts.add(text.toLowerCase());
-      distractors.push(text);
-    }
-  }
-
-  const options = [{ text: correctChoice, correct: true }, ...distractors.map(d => ({ text: d, correct: false }))]
-    .sort(() => 0.5 - Math.random());
-
-  const grid = document.getElementById('hunter-options-grid');
-  grid.innerHTML = '';
-  options.forEach(opt => {
-    const btn = document.createElement('button');
-    btn.className = 'animate-fade-in tactile-btn p-3.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 font-semibold text-xs text-slate-800 shadow-xs';
-    btn.textContent = opt.text;
-    btn.onclick = () => {
-      grid.querySelectorAll('button').forEach(b => b.disabled = true);
-      if (opt.correct) {
-        btn.classList.add('bg-emerald-500/15', 'border-emerald-500', 'pop-success');
-        addSuccessScore(125);
-        showToast(`Verified: ${opt.text}`, '✓');
-        advanceOrFinishRound(nextMeaningHunterRound, 800);
-      } else {
-        btn.classList.add('bg-rose-500/15', 'border-rose-500', 'shake-anim');
-        handleMistake(currentItem);
-        showToast(`Answer: "${correctChoice}"`, '✕');
-        advanceOrFinishRound(nextMeaningHunterRound, 1100);
-      }
-    };
-    grid.appendChild(btn);
+function renderDuelPhraseWords(phrase, spokenTokens = null) {
+  const box = document.getElementById('duel-phrase-words');
+  if (!box) return;
+  box.innerHTML = '';
+  phrase.split(/\s+/).forEach(w => {
+    const clean = w.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const matched = spokenTokens && spokenTokens.includes(clean);
+    const span = document.createElement('span');
+    span.className = matched
+      ? 'px-2 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-bold text-sm transition'
+      : 'px-2 py-0.5 rounded-lg app-subsurface border border-slate-700/60 text-slate-200 font-semibold text-sm transition';
+    span.textContent = w;
+    box.appendChild(span);
   });
 }
 
-/* ---------- 9. BALLOON CATCHER ---------- */
-function nextBalloonCatcherRound() {
-  const pool = getFilteredVocab();
-  currentItem = drawNextWord(pool);
-  if (!currentItem) return;
-  roundNumber++;
-  updateRoundProgressUI();
-
-  document.getElementById('balloon-target-prompt').textContent = `Tangkap: "${getShortMeaning(currentItem, 56)}"`;
-  const playground = document.getElementById('balloon-playground');
-  playground.innerHTML = '';
-
-  const otherSource = pool.length >= 4 ? pool : VOCAB_DATA;
-  const otherWords = otherSource.filter(v => v.id !== currentItem.id).sort(() => 0.5 - Math.random()).slice(0, 3);
-  const balloons = [currentItem, ...otherWords].sort(() => 0.5 - Math.random());
-
-  const fallDurations = [3.8, 4.4, 5.0, 4.1];
-  balloons.forEach((item, idx) => {
-    const balloon = document.createElement('button');
-    const leftPct = 4 + (idx * 23) + Math.floor(Math.random() * 8);
-    const duration = fallDurations[idx];
-
-    balloon.className = 'balloon-falling tactile-btn px-3.5 py-2 rounded-2xl bg-white border border-slate-300 shadow-md text-slate-800 font-semibold text-xs flex items-center gap-2 hover:border-indigo-500';
-    balloon.style.left = `${leftPct}%`;
-    balloon.style.animationDuration = `${duration}s`;
-    balloon.style.animationDelay = `${idx * 0.5}s`;
-    balloon.innerHTML = hasRealImage(item)
-      ? `<div class="w-8 h-8 rounded-full overflow-hidden border border-slate-200 flex-shrink-0">${renderWordImgTag(item, 'w-full h-full object-cover')}</div><span class="code-font font-bold">${item.word}</span>`
-      : `<span class="w-2.5 h-2.5 rounded-full bg-sky-500 flex-shrink-0"></span><span class="code-font font-bold text-sm">${item.word}</span>`;
-
-    let answered = false;
-    balloon.onclick = () => {
-      if (answered) return;
-      answered = true;
-      balloon.style.animationPlayState = 'paused';
-      if (item.id === currentItem.id) {
-        balloon.classList.add('bg-emerald-50', 'border-emerald-600', 'pop-success');
-        addSuccessScore(130);
-        showToast(`Tertangkap: "${currentItem.word}"`, '✓');
-        speakText(currentItem.word);
-        setTimeout(() => { playground.innerHTML = ''; advanceOrFinishRound(nextBalloonCatcherRound, 400); }, 500);
-      } else {
-        balloon.classList.add('bg-rose-50', 'border-rose-500', 'shake-anim');
-        handleMistake(currentItem);
-        showToast('Target salah!', '✕');
-      }
-    };
-
-    balloon.addEventListener('animationend', () => {
-      if (!answered) {
-        answered = true;
-        balloon.remove();
-        if (item.id === currentItem.id) {
-          handleMistake(item);
-          showToast(`Target lolos: "${item.word}"!`, '💨');
-          playground.innerHTML = '';
-          advanceOrFinishRound(nextBalloonCatcherRound, 500);
-        } else if (playground.querySelectorAll('.balloon-falling').length === 0) {
-          advanceOrFinishRound(nextBalloonCatcherRound, 400);
-        }
-      }
-    });
-
-    playground.appendChild(balloon);
-  });
-}
-
-/* ---------- 10. VOICE DUEL ---------- */
 function nextVoiceDuelRound() {
   currentItem = drawNextWord(getFilteredVocab());
   if (!currentItem) return;
   roundNumber++;
   updateRoundProgressUI();
 
-  setOptionalImageFrame('duel-image-frame', currentItem);
-  document.getElementById('duel-target-word').textContent = currentItem.word;
-  document.getElementById('duel-phonetic').textContent = currentItem.phonetic;
-  document.getElementById('duel-meaning').textContent = `"${currentItem.definition}"`;
-  document.getElementById('duel-status-text').textContent = 'Tekan mikrofon dan ucapkan dengan jelas';
-  document.getElementById('duel-result-feedback').innerHTML = '';
-  speakText(currentItem.word);
+  const wordEl = document.getElementById('duel-target-word');
+  const phraseEl = document.getElementById('duel-phrase-words');
+  const phonEl = document.getElementById('duel-phonetic');
+  const meanEl = document.getElementById('duel-meaning');
+  const subEl = document.getElementById('duel-mode-subtitle');
+
+  if (voiceDuelSubmode === 'phrase') {
+    const pick = SPEAKING_PHRASE_BANK[Math.floor(Math.random() * SPEAKING_PHRASE_BANK.length)];
+    voiceDuelTargetPhrase = pick.text;
+    setOptionalImageFrame('duel-image-frame', null);
+    if (subEl) subEl.textContent = 'Speaking Phrases (Highlight per Kata)';
+    if (wordEl) wordEl.classList.add('hidden');
+    if (phraseEl) {
+      phraseEl.classList.remove('hidden');
+      renderDuelPhraseWords(voiceDuelTargetPhrase, null);
+    }
+    if (phonEl) phonEl.textContent = '';
+    if (meanEl) meanEl.textContent = `"${pick.indo}"`;
+    document.getElementById('duel-status-text').textContent = 'Tekan mikrofon lalu ucapkan kalimat di atas';
+    document.getElementById('duel-result-feedback').innerHTML = '';
+    speakText(voiceDuelTargetPhrase);
+  } else {
+    voiceDuelTargetPhrase = '';
+    setOptionalImageFrame('duel-image-frame', currentItem);
+    if (subEl) subEl.textContent = 'Uji Artikulasi Suara';
+    if (wordEl) {
+      wordEl.classList.remove('hidden');
+      wordEl.textContent = currentItem.word;
+    }
+    if (phraseEl) phraseEl.classList.add('hidden');
+    if (phonEl) phonEl.textContent = currentItem.phonetic;
+    if (meanEl) meanEl.textContent = `"${currentItem.definition}"`;
+    document.getElementById('duel-status-text').textContent = 'Tekan mikrofon dan ucapkan dengan jelas';
+    document.getElementById('duel-result-feedback').innerHTML = '';
+    speakText(currentItem.word);
+  }
 }
 
 function triggerDuelSpeechRecognition() {
@@ -707,14 +497,36 @@ function triggerDuelSpeechRecognition() {
   recognizer.interimResults = false;
 
   const micBtn = document.getElementById('btn-duel-mic');
-  statusText.textContent = 'Mendengarkan... Ucapkan kata sekarang.';
+  statusText.textContent = 'Mendengarkan... Ucapkan sekarang.';
   micBtn.classList.add('ring-2', 'ring-sky-500');
   recognizer.start();
 
   recognizer.onresult = (event) => {
     const spoken = event.results[0][0].transcript.toLowerCase().trim();
-    const target = currentItem.word.toLowerCase();
     micBtn.classList.remove('ring-2', 'ring-sky-500');
+
+    if (voiceDuelSubmode === 'phrase' && voiceDuelTargetPhrase) {
+      const targetWords = voiceDuelTargetPhrase.toLowerCase().split(/\s+/).map(w => w.replace(/[^a-z0-9]/g, '')).filter(Boolean);
+      const spokenTokens = spoken.split(/\s+/).map(w => w.replace(/[^a-z0-9]/g, '')).filter(Boolean);
+      renderDuelPhraseWords(voiceDuelTargetPhrase, spokenTokens);
+      const hitCount = targetWords.filter(tw => spokenTokens.includes(tw)).length;
+      const pct = Math.round((hitCount / Math.max(1, targetWords.length)) * 100);
+      if (pct >= 70) {
+        statusText.textContent = `Terdengar: "${spoken}"`;
+        resultBox.innerHTML = `<span class="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 text-xs font-mono font-bold rounded border border-emerald-400/30">✓ ${pct}% Kalimat Akurat</span>`;
+        addSuccessScore(180);
+        unlockBadge('voice_master');
+        triggerConfetti();
+        advanceOrFinishRound(nextVoiceDuelRound, 1200);
+      } else {
+        statusText.textContent = `Terdengar: "${spoken}" (${pct}% cocok)`;
+        resultBox.innerHTML = `<span class="px-2.5 py-0.5 bg-amber-500/15 text-amber-400 text-xs font-mono font-bold rounded border border-amber-400/30">Coba ucapkan lagi lebih jelas</span>`;
+        playSfx('wrong');
+      }
+      return;
+    }
+
+    const target = currentItem.word.toLowerCase();
     if (spoken.includes(target)) {
       statusText.textContent = `Cocok: "${spoken}"`;
       resultBox.innerHTML = `<span class="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 text-xs font-mono font-bold rounded border border-emerald-400/30">✓ Pelafalan Akurat</span>`;
@@ -732,30 +544,66 @@ function triggerDuelSpeechRecognition() {
   recognizer.onend = () => micBtn.classList.remove('ring-2', 'ring-sky-500');
 }
 
-/* ---------- 11. PENEMBAK KATA (WORD SHOOTER) ---------- */
+/* ---------- 11. PENEMBAK KATA (ZTYPE-STYLE CANVAS ARCADE SHOOTER) ---------- */
+let shooterAnimFrame = null;
+let shooterParticles = [];
+let shooterLasers = [];
+let shooterFloaters = [];
+let shooterStars = [];
+let shooterLockedId = null;
+let shooterTurretAngle = -Math.PI / 2;
+let shooterShakeFrames = 0;
+let shooterLastTick = 0;
+
 function startWordShooterGame() {
   stopAllActiveGameTimers();
   shooterActiveWords = [];
+  shooterParticles = [];
+  shooterLasers = [];
+  shooterFloaters = [];
+  shooterLockedId = null;
+  shooterTurretAngle = -Math.PI / 2;
+  shooterShakeFrames = 0;
   shooterDestroyed = 0;
   roundNumber = 0;
   updateRoundProgressUI();
-  document.getElementById('shooter-destroyed-label').textContent = `Destroyed: 0 / ${MAX_ROUNDS}`;
+
+  const label = document.getElementById('shooter-destroyed-label');
+  if (label) label.textContent = `Target: 0 / ${MAX_ROUNDS}`;
+  const comboPill = document.getElementById('shooter-combo-pill');
+  if (comboPill) comboPill.classList.add('hidden');
 
   const arena = document.getElementById('shooter-arena');
   arena.querySelectorAll('.shooter-falling-item').forEach(el => el.remove());
 
+  const canvas = document.getElementById('shooter-canvas');
+  if (canvas) {
+    canvas.width = arena.clientWidth || 600;
+    canvas.height = arena.clientHeight || 320;
+    shooterStars = Array.from({ length: 34 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.4 + 0.4,
+      v: Math.random() * 0.25 + 0.1,
+      a: Math.random() * 0.5 + 0.2
+    }));
+  }
+
   const input = document.getElementById('shooter-type-input');
-  input.value = '';
-  input.focus();
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
 
   spawnShooterWord();
   shooterSpawnInterval = setInterval(() => {
     if (shooterActiveWords.length < 3 && (shooterDestroyed + shooterActiveWords.length) < MAX_ROUNDS) {
       spawnShooterWord();
     }
-  }, 2400);
+  }, 2300);
 
-  shooterInterval = setInterval(tickShooterArena, 50);
+  shooterLastTick = performance.now();
+  shooterAnimFrame = requestAnimationFrame(loopShooterCanvas);
 }
 
 function spawnShooterWord() {
@@ -764,84 +612,296 @@ function spawnShooterWord() {
   if (!item) return;
 
   const arena = document.getElementById('shooter-arena');
+  if (!arena) return;
   const el = document.createElement('div');
-  const leftPct = 10 + Math.floor(Math.random() * 62);
-  el.className = 'shooter-falling-item absolute px-3 py-1.5 rounded-xl bg-slate-900/90 border border-sky-400/60 shadow-lg text-center pointer-events-none transition-colors';
+  // Alokasi jalur horizontal anti-tumpang-tindih (4 jalur)
+  const lanes = [6, 27, 48, 66];
+  const busyLanes = new Set(
+    shooterActiveWords.filter(w => w.y < 110).map(w => w.laneIdx)
+  );
+  const freeLanes = lanes.map((_, idx) => idx).filter(idx => !busyLanes.has(idx));
+  const laneIdx = freeLanes.length
+    ? freeLanes[Math.floor(Math.random() * freeLanes.length)]
+    : Math.floor(Math.random() * lanes.length);
+  const leftPct = lanes[laneIdx] + Math.floor(Math.random() * 4);
+  el.className = 'shooter-falling-item absolute px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700/80 shadow-lg text-center pointer-events-none transition-colors';
   el.style.left = `${leftPct}%`;
-  el.style.top = '8px';
+  el.style.top = '10px';
   el.innerHTML = `
-    <div class="code-font text-sm font-extrabold text-white tracking-wide shooter-word-label">${item.word}</div>
-    <div class="text-[10px] text-sky-300 max-w-[140px] truncate">${getShortMeaning(item, 24)}</div>
+    <div class="code-font text-sm font-extrabold text-white tracking-wider shooter-word-label">${item.word}</div>
+    <div class="text-[10px] text-sky-300/90 max-w-[140px] truncate">${getShortMeaning(item, 22)}</div>
   `;
   arena.appendChild(el);
   shooterActiveWords.push({
+    uid: `sw_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     item,
     el,
-    y: 8,
-    speed: 0.95 + Math.min(0.6, shooterDestroyed * 0.08)
+    laneIdx,
+    y: 10,
+    typedLen: 0,
+    speed: 0.48 + Math.min(0.45, shooterDestroyed * 0.055)
   });
 }
 
-function tickShooterArena() {
-  const arena = document.getElementById('shooter-arena');
-  if (!arena || currentMode !== 'word-shooter') return;
-  const maxBottom = arena.clientHeight - 54;
+function getShooterTargetCenter(obj, arena) {
+  const rect = obj.el.getBoundingClientRect();
+  const aRect = arena.getBoundingClientRect();
+  return {
+    x: (rect.left - aRect.left) + rect.width / 2,
+    y: (rect.top - aRect.top) + rect.height / 2
+  };
+}
 
+function spawnShooterBurst(x, y, count = 18, color = '#38BDF8') {
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+    const spd = Math.random() * 3.6 + 1.2;
+    shooterParticles.push({
+      x, y,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd,
+      r: Math.random() * 2.5 + 1.2,
+      color: i % 3 === 0 ? '#34D399' : color,
+      alpha: 1
+    });
+  }
+}
+
+function loopShooterCanvas(now) {
+  if (currentMode !== 'word-shooter') return;
+  const arena = document.getElementById('shooter-arena');
+  const canvas = document.getElementById('shooter-canvas');
+  if (!arena || !canvas) return;
+
+  const dt = Math.min(2.2, Math.max(0.5, (now - shooterLastTick) / 16.67));
+  shooterLastTick = now;
+
+  if (canvas.width !== arena.clientWidth || canvas.height !== arena.clientHeight) {
+    canvas.width = arena.clientWidth;
+    canvas.height = arena.clientHeight;
+  }
+
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+  const turretX = W / 2;
+  const turretY = H - 22;
+  const maxBottom = H - 56;
+
+  // Move falling words (pelan 0.55x saat Mode Zen)
+  const paceMult = gamePaceMode === 'zen' ? 0.55 : 1.0;
   for (let i = shooterActiveWords.length - 1; i >= 0; i--) {
     const obj = shooterActiveWords[i];
-    obj.y += obj.speed;
+    obj.y += obj.speed * paceMult * dt;
     obj.el.style.top = `${obj.y}px`;
 
     if (obj.y >= maxBottom) {
+      const pos = getShooterTargetCenter(obj, arena);
+      spawnShooterBurst(pos.x, pos.y, 14, '#FB7185');
+      shooterShakeFrames = 8;
+      if (shooterLockedId === obj.uid) {
+        shooterLockedId = null;
+        const inp = document.getElementById('shooter-type-input');
+        if (inp) inp.value = '';
+      }
       obj.el.remove();
       shooterActiveWords.splice(i, 1);
       handleMistake(obj.item);
-      showToast(`Missed "${obj.item.word}"!`, '💥');
+      showToast(`Terlewat: "${obj.item.word}"`, '✕');
       if (lives > 0 && shooterActiveWords.length === 0) spawnShooterWord();
     }
   }
+
+  // Smooth turret aim toward locked target (or lowest target)
+  const lockedObj = shooterActiveWords.find(o => o.uid === shooterLockedId)
+    || shooterActiveWords.slice().sort((a, b) => b.y - a.y)[0];
+  if (lockedObj) {
+    const pos = getShooterTargetCenter(lockedObj, arena);
+    const desired = Math.atan2(pos.y - turretY, pos.x - turretX);
+    shooterTurretAngle += (desired - shooterTurretAngle) * 0.22;
+  }
+
+  // Render Canvas
+  ctx.save();
+  ctx.clearRect(0, 0, W, H);
+  if (shooterShakeFrames > 0) {
+    shooterShakeFrames--;
+    ctx.translate((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6);
+  }
+
+  // Starfield
+  shooterStars.forEach(s => {
+    s.y += s.v * dt;
+    if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+    ctx.fillStyle = `rgba(148, 163, 184, ${s.a})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Subtle defense line
+  ctx.strokeStyle = 'rgba(244, 63, 94, 0.22)';
+  ctx.setLineDash([6, 6]);
+  ctx.beginPath();
+  ctx.moveTo(16, maxBottom + 18);
+  ctx.lineTo(W - 16, maxBottom + 18);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Lasers
+  for (let i = shooterLasers.length - 1; i >= 0; i--) {
+    const l = shooterLasers[i];
+    l.alpha -= 0.09 * dt;
+    if (l.alpha <= 0) { shooterLasers.splice(i, 1); continue; }
+    ctx.strokeStyle = `rgba(56, 189, 248, ${l.alpha})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(l.x1, l.y1);
+    ctx.lineTo(l.x2, l.y2);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(248, 250, 252, ${l.alpha * 0.85})`;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(l.x1, l.y1);
+    ctx.lineTo(l.x2, l.y2);
+    ctx.stroke();
+  }
+
+  // Particles
+  for (let i = shooterParticles.length - 1; i >= 0; i--) {
+    const p = shooterParticles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.alpha -= 0.032 * dt;
+    if (p.alpha <= 0) { shooterParticles.splice(i, 1); continue; }
+    ctx.globalAlpha = Math.max(0, p.alpha);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Floating score popups
+  for (let i = shooterFloaters.length - 1; i >= 0; i--) {
+    const f = shooterFloaters[i];
+    f.y -= 0.7 * dt;
+    f.alpha -= 0.025 * dt;
+    if (f.alpha <= 0) { shooterFloaters.splice(i, 1); continue; }
+    ctx.fillStyle = `rgba(52, 211, 153, ${f.alpha})`;
+    ctx.font = 'bold 12px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(f.text, f.x, f.y);
+  }
+
+  // Rotating vector turret at bottom center
+  ctx.save();
+  ctx.translate(turretX, turretY);
+  ctx.rotate(shooterTurretAngle + Math.PI / 2);
+  ctx.fillStyle = '#0F172A';
+  ctx.strokeStyle = '#38BDF8';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -14);
+  ctx.lineTo(11, 10);
+  ctx.lineTo(0, 5);
+  ctx.lineTo(-11, 10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.restore();
+  shooterAnimFrame = requestAnimationFrame(loopShooterCanvas);
 }
 
 function handleShooterInput(rawVal) {
   const val = (rawVal || '').trim().toLowerCase();
   const input = document.getElementById('shooter-type-input');
+  const arena = document.getElementById('shooter-arena');
+  const canvas = document.getElementById('shooter-canvas');
 
+  // Determine or keep locked target
+  let target = shooterActiveWords.find(o => o.uid === shooterLockedId);
+  if (target && val && !target.item.word.toLowerCase().startsWith(val)) {
+    target = null;
+    shooterLockedId = null;
+  }
+  if (!target && val) {
+    const matches = shooterActiveWords
+      .filter(o => o.item.word.toLowerCase().startsWith(val))
+      .sort((a, b) => b.y - a.y);
+    if (matches.length) {
+      target = matches[0];
+      shooterLockedId = target.uid;
+    }
+  }
+
+  // Update visual highlight on all words
   shooterActiveWords.forEach(obj => {
     const label = obj.el.querySelector('.shooter-word-label');
     if (!label) return;
     const w = obj.item.word.toLowerCase();
-    if (val && w.startsWith(val)) {
-      label.innerHTML = `<span class="text-emerald-400 underline">${w.slice(0, val.length)}</span>${w.slice(val.length)}`;
-      obj.el.classList.add('border-emerald-400');
+    const isLocked = target && obj.uid === target.uid && val && w.startsWith(val);
+    if (isLocked) {
+      label.innerHTML = `<span class="text-emerald-400">${w.slice(0, val.length)}</span><span class="text-white">${w.slice(val.length)}</span>`;
+      obj.el.classList.add('border-sky-400', 'ring-2', 'ring-sky-400/40');
+      obj.el.classList.remove('border-slate-700/80');
     } else {
       label.textContent = obj.item.word;
-      obj.el.classList.remove('border-emerald-400');
+      obj.el.classList.remove('border-sky-400', 'ring-2', 'ring-sky-400/40');
+      obj.el.classList.add('border-slate-700/80');
     }
   });
 
-  const hitIdx = shooterActiveWords.findIndex(obj => obj.item.word.toLowerCase() === val);
-  if (hitIdx !== -1) {
-    const hit = shooterActiveWords[hitIdx];
-    currentItem = hit.item;
-    hit.el.innerHTML = `<div class="pop-success text-rose-400 flex items-center justify-center">${getAppIconSvg('zap', 'w-6 h-6')}</div>`;
-    setTimeout(() => hit.el.remove(), 220);
-    shooterActiveWords.splice(hitIdx, 1);
+  // Fire laser per new correct letter!
+  if (target && val.length > target.typedLen && arena && canvas) {
+    target.typedLen = val.length;
+    const pos = getShooterTargetCenter(target, arena);
+    shooterLasers.push({
+      x1: canvas.width / 2,
+      y1: canvas.height - 26,
+      x2: pos.x,
+      y2: pos.y,
+      alpha: 1
+    });
+    spawnShooterBurst(pos.x, pos.y, 5, '#38BDF8');
+    playSfx('laser', streak);
+  }
 
-    input.value = '';
-    shooterDestroyed++;
-    roundNumber = shooterDestroyed;
-    updateRoundProgressUI();
-    document.getElementById('shooter-destroyed-label').textContent = `Destroyed: ${shooterDestroyed} / ${MAX_ROUNDS}`;
+  // Word completely destroyed!
+  if (target && target.item.word.toLowerCase() === val) {
+    const hitIdx = shooterActiveWords.findIndex(o => o.uid === target.uid);
+    if (hitIdx !== -1) {
+      const pos = getShooterTargetCenter(target, arena);
+      spawnShooterBurst(pos.x, pos.y, 24, '#38BDF8');
+      shooterFloaters.push({ x: pos.x, y: pos.y, text: streak >= 4 ? 'FEVER +280' : '+140', alpha: 1 });
+      shooterShakeFrames = 5;
+      playSfx('explode');
 
-    addSuccessScore(140);
-    speakText(hit.item.word, 0.9);
-    showToast(`Destroyed: "${hit.item.word}"`, '✓');
+      currentItem = target.item;
+      target.el.remove();
+      shooterActiveWords.splice(hitIdx, 1);
+      shooterLockedId = null;
 
-    if (shooterDestroyed >= MAX_ROUNDS) {
-      stopAllActiveGameTimers();
-      setTimeout(endGameSession, 450);
-    } else if (shooterActiveWords.length === 0) {
-      spawnShooterWord();
+      if (input) input.value = '';
+      shooterDestroyed++;
+      roundNumber = shooterDestroyed;
+      updateRoundProgressUI();
+      document.getElementById('shooter-destroyed-label').textContent = `Target: ${shooterDestroyed} / ${MAX_ROUNDS}`;
+
+      addSuccessScore(140);
+      const comboPill = document.getElementById('shooter-combo-pill');
+      if (comboPill) comboPill.classList.toggle('hidden', streak < 3);
+
+      speakText(target.item.word);
+
+      if (shooterDestroyed >= MAX_ROUNDS) {
+        stopAllActiveGameTimers();
+        setTimeout(endGameSession, 450);
+      } else if (shooterActiveWords.length === 0) {
+        spawnShooterWord();
+      }
     }
   }
 }

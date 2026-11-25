@@ -11,7 +11,7 @@ function setLeaderboardPeriod(period) {
     const btn = document.getElementById(`lb-tab-${p}`);
     if (btn) {
       btn.className = p === period
-        ? 'flex-1 py-1.5 rounded-xl bg-sky-500 text-white font-bold text-xs shadow-xs transition'
+        ? 'flex-1 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-xs transition'
         : 'flex-1 py-1.5 rounded-xl text-slate-500 font-medium text-xs transition';
     }
   });
@@ -25,14 +25,14 @@ function getRankedEntries(period = leaderboardPeriod) {
 
   const byUsername = new Map();
   if (cloudRows && cloudRows.length > 0) {
-    cloudRows.forEach(r => byUsername.set(r.username.toLowerCase(), { ...r, isRegistered: true }));
+    cloudRows.forEach(r => byUsername.set(r.username.toLowerCase(), { ...r, isRegistered: true, isNpc: false }));
     if (cloudRows.length < 3) {
       NPC_COMPETITORS.forEach(npc => {
-        if (!byUsername.has(npc.username)) byUsername.set(npc.username, npc);
+        if (!byUsername.has(npc.username)) byUsername.set(npc.username, { ...npc, isNpc: true });
       });
     }
   } else {
-    NPC_COMPETITORS.forEach(npc => byUsername.set(npc.username, npc));
+    NPC_COMPETITORS.forEach(npc => byUsername.set(npc.username, { ...npc, isNpc: true }));
     Object.values(loadAllAccounts()).forEach(acc => {
       byUsername.set(acc.username.toLowerCase(), {
         username: acc.username,
@@ -42,7 +42,8 @@ function getRankedEntries(period = leaderboardPeriod) {
         xp: acc.xp || 0,
         weeklyXP: acc.weeklyXP || 0,
         monthlyXP: acc.monthlyXP || 0,
-        isRegistered: true
+        isRegistered: true,
+        isNpc: false
       });
     });
   }
@@ -56,7 +57,8 @@ function getRankedEntries(period = leaderboardPeriod) {
       xp: currentUser.xp || 0,
       weeklyXP: currentUser.weeklyXP || 0,
       monthlyXP: currentUser.monthlyXP || 0,
-      isGuest: currentUser.isGuest
+      isGuest: currentUser.isGuest,
+      isNpc: false
     });
   }
 
@@ -88,9 +90,21 @@ function renderLeaderboard(skipCloudRefresh = false) {
 
   const bannerName = document.getElementById('lb-banner-name');
   const bannerSub = document.getElementById('lb-banner-sub');
-  const cloudTag = (typeof isCloudEnabled === 'function' && isCloudEnabled()) ? 'Online' : 'Lokal';
-  if (bannerName && me) bannerName.textContent = `${me.name} • Peringkat #${me.rank} dari ${ranked.length} (${cloudTag})`;
-  if (bannerSub && me) bannerSub.textContent = `${me.displayXP} XP (${leaderboardPeriod === 'weekly' ? 'Minggu Ini' : leaderboardPeriod === 'monthly' ? 'Bulan Ini' : 'Sepanjang Waktu'})`;
+  const isOnline = typeof isCloudEnabled === 'function' && isCloudEnabled();
+  const hasNpc = ranked.some(r => r.isNpc);
+  const modeTag = isOnline
+    ? (hasNpc ? 'Online + Bot Latihan' : 'Online')
+    : 'Lokal + Bot Latihan';
+  const myXP = me ? me.displayXP : 0;
+  const leagueName = myXP >= 1000 ? 'Obsidian League' : (myXP >= 500 ? 'Sapphire League' : (myXP >= 250 ? 'Gold League' : (myXP >= 100 ? 'Silver League' : 'Bronze League')));
+  const zoneLabel = me && me.rank <= 3 ? 'Zona Promosi (Top 3)' : 'Zona Aman';
+  if (bannerName && me) bannerName.textContent = `${leagueName} • Peringkat #${me.rank} (${modeTag})`;
+  if (bannerSub && me) {
+    const periodLabel = leaderboardPeriod === 'weekly' ? 'Minggu Ini' : leaderboardPeriod === 'monthly' ? 'Bulan Ini' : 'Sepanjang Waktu';
+    bannerSub.textContent = hasNpc
+      ? `${me.displayXP} XP • ${zoneLabel} (${periodLabel}) • Termasuk bot latihan`
+      : `${me.displayXP} XP • ${zoneLabel} (${periodLabel})`;
+  }
 
   const podium = document.getElementById('leaderboard-podium');
   const list = document.getElementById('leaderboard-list');
@@ -111,7 +125,7 @@ function renderLeaderboard(skipCloudRefresh = false) {
       <div class="${isFirst ? 'w-14 h-14' : 'w-11 h-11'} ${ring}">
         ${getAvatarMarkup(entry.avatar, entry.name, isFirst ? 'w-14 h-14 rounded-2xl text-sm' : 'w-11 h-11 rounded-xl text-xs')}
       </div>
-      <span class="text-xs font-bold mt-1.5 max-w-[80px] truncate">${entry.isMe ? 'You' : entry.name}</span>
+      <span class="text-xs font-bold mt-1.5 max-w-[92px] truncate flex items-center justify-center gap-1">${entry.isMe ? 'You' : escapeHtml(entry.name)}${entry.isNpc ? '<span class="text-[8px] font-mono uppercase bg-slate-500/25 text-slate-300 px-1 py-0.2 rounded">BOT</span>' : ''}</span>
       <span class="code-font text-[10px] ${isFirst ? 'text-amber-400 font-extrabold' : 'text-sky-400 font-bold'}">${entry.displayXP} XP</span>
       <div class="${barColor} rounded-t-2xl flex items-center justify-center text-xl font-black mt-2 shadow-sm font-mono">${entry.rank}</div>
     `;
@@ -129,7 +143,7 @@ function renderLeaderboard(skipCloudRefresh = false) {
         <span class="font-mono font-bold text-xs ${entry.isMe ? 'text-sky-400' : 'text-slate-400'} w-5">${entry.rank}</span>
         ${getAvatarMarkup(entry.avatar, entry.name, 'w-8 h-8 rounded-xl')}
         <div>
-          <span class="text-xs font-bold">${entry.name} ${entry.isMe ? '<span class="text-[10px] bg-sky-500 text-white px-1.5 py-0.5 rounded ml-1 font-bold">YOU</span>' : ''}</span>
+          <span class="text-xs font-bold">${escapeHtml(entry.name)} ${entry.isMe ? '<span class="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded ml-1 font-bold">YOU</span>' : (entry.isNpc ? '<span class="text-[9px] font-mono uppercase bg-slate-500/20 text-slate-400 border border-slate-500/30 px-1.5 py-0.5 rounded ml-1">BOT</span>' : '')}</span>
           <span class="text-[10px] text-slate-400 block font-mono">CEFR ${entry.cefr}</span>
         </div>
       </div>

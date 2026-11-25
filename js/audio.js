@@ -85,7 +85,7 @@ function getAudioContext() {
   return audioCtx;
 }
 
-function playSfx(type) {
+function playSfx(type, comboLevel = 0) {
   if (!sfxEnabled) return;
   try {
     const ctx = getAudioContext();
@@ -97,12 +97,31 @@ function playSfx(type) {
       osc.frequency.exponentialRampToValueAtTime(800, now + 0.03);
       gain.gain.setValueAtTime(0.08, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
       osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.03);
+    } else if (type === 'laser') {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.type = 'triangle';
+      const baseFreq = 920 + Math.min(comboLevel, 8) * 55;
+      osc.frequency.setValueAtTime(baseFreq, now);
+      osc.frequency.exponentialRampToValueAtTime(340, now + 0.055);
+      gain.gain.setValueAtTime(0.09, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
+      osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.055);
+    } else if (type === 'explode') {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(55, now + 0.18);
+      gain.gain.setValueAtTime(0.11, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.18);
     } else if (type === 'correct') {
-      [698.46, 880.00].forEach((freq, idx) => {
+      // Tangga nada pentatonis naik tiap kombo beruntun (Game Juice)
+      const pentatonic = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66, 1318.51];
+      const idxBase = Math.min(Math.max(0, (comboLevel || 1) - 1), pentatonic.length - 2);
+      const notes = [pentatonic[idxBase], pentatonic[idxBase + 1]];
+      notes.forEach((freq, idx) => {
         const osc = ctx.createOscillator(), gain = ctx.createGain();
-        osc.type = 'sine'; osc.frequency.setValueAtTime(freq, now + idx * 0.06);
-        gain.gain.setValueAtTime(0.12, now + idx * 0.06); gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.22);
-        osc.connect(gain); gain.connect(ctx.destination); osc.start(now + idx * 0.06); osc.stop(now + idx * 0.06 + 0.22);
+        osc.type = 'sine'; osc.frequency.setValueAtTime(freq, now + idx * 0.055);
+        gain.gain.setValueAtTime(0.12, now + idx * 0.055); gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.055 + 0.22);
+        osc.connect(gain); gain.connect(ctx.destination); osc.start(now + idx * 0.055); osc.stop(now + idx * 0.055 + 0.22);
       });
     } else if (type === 'wrong') {
       const osc = ctx.createOscillator(), gain = ctx.createGain();

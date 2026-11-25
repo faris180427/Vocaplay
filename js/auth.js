@@ -33,12 +33,13 @@ function applyUserToApp(userObj) {
   refreshAllUI();
 }
 
-function renderAvatarPicker(containerId, hiddenInputId, selectedKey) {
+function renderAvatarPicker(containerId, hiddenInputId, selectedKey, onPickCb = null) {
   const box = document.getElementById(containerId);
   const hidden = document.getElementById(hiddenInputId);
   if (!box || !hidden) return;
-  const currentKey = AVATAR_PALETTES[selectedKey] ? selectedKey : 'av-sky';
-  hidden.value = currentKey;
+  const isPalette = Boolean(AVATAR_PALETTES[selectedKey]);
+  const currentKey = isPalette ? selectedKey : '';
+  if (isPalette) hidden.value = currentKey;
   box.innerHTML = '';
   AVATAR_CHOICES.forEach(key => {
     const p = AVATAR_PALETTES[key];
@@ -49,7 +50,9 @@ function renderAvatarPicker(containerId, hiddenInputId, selectedKey) {
     btn.innerHTML = active ? `<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>` : '';
     btn.onclick = () => {
       playSfx('click');
-      renderAvatarPicker(containerId, hiddenInputId, key);
+      hidden.value = key;
+      renderAvatarPicker(containerId, hiddenInputId, key, onPickCb);
+      if (typeof onPickCb === 'function') onPickCb(key);
     };
     box.appendChild(btn);
   });
@@ -110,12 +113,12 @@ function switchAuthTab(tab) {
   if (tab === 'login') {
     loginForm.classList.remove('hidden');
     regForm.classList.add('hidden');
-    tabLogin.className = 'flex-1 py-2 rounded-xl bg-sky-500 text-white font-bold text-xs shadow-xs transition';
+    tabLogin.className = 'flex-1 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-xs transition';
     tabReg.className = 'flex-1 py-2 rounded-xl text-slate-400 font-semibold text-xs transition';
   } else {
     loginForm.classList.add('hidden');
     regForm.classList.remove('hidden');
-    tabReg.className = 'flex-1 py-2 rounded-xl bg-sky-500 text-white font-bold text-xs shadow-xs transition';
+    tabReg.className = 'flex-1 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-xs transition';
     tabLogin.className = 'flex-1 py-2 rounded-xl text-slate-400 font-semibold text-xs transition';
   }
 }
@@ -139,8 +142,8 @@ function renderSavedAccountsList() {
       <div class="flex items-center gap-2.5">
         ${getAvatarMarkup(acc.avatar, acc.name, 'w-8 h-8 rounded-xl')}
         <div>
-          <div class="text-xs font-bold text-slate-900">${acc.name} ${isCurrent ? '<span class="text-[10px] text-indigo-600">(Aktif)</span>' : ''}</div>
-          <div class="text-[10px] text-slate-500 font-mono">@${acc.username} • ${acc.xp} XP</div>
+          <div class="text-xs font-bold text-slate-900">${escapeHtml(acc.name)} ${isCurrent ? '<span class="text-[10px] text-indigo-600">(Aktif)</span>' : ''}</div>
+          <div class="text-[10px] text-slate-500 font-mono">@${escapeHtml(acc.username)} • ${Number(acc.xp) || 0} XP</div>
         </div>
       </div>
       <span class="text-[10px] font-bold text-sky-400">Pilih →</span>
@@ -178,19 +181,12 @@ async function handleLoginSubmit(e) {
 
   if (typeof isCloudEnabled === 'function' && isCloudEnabled()) {
     try {
-      let res = await cloudLoginAccount(username, pwHash);
-      let activeHash = pwHash;
-      // Fallback check for legacy FNV-1a accounts on Supabase
-      if ((!res || !res.ok) && legacyHash !== pwHash) {
-        const legacyRes = await cloudLoginAccount(username, legacyHash);
-        if (legacyRes && legacyRes.ok && legacyRes.user) {
-          res = legacyRes;
-          activeHash = legacyHash;
-        }
-      }
+      // Password asli dikirim lewat HTTPS dan di-hash di server (bcrypt).
+      // pwHash dikirim sebagai legacy_password hanya untuk migrasi akun lama satu kali.
+      const res = await cloudLoginAccount(username, password, pwHash);
 
       if (res && res.ok && res.user) {
-        const cloudAcc = { ...res.user, passwordHash: activeHash, isGuest: false };
+        const cloudAcc = { ...res.user, passwordHash: pwHash, isGuest: false };
         const accounts = loadAllAccounts();
         accounts[username] = cloudAcc;
         saveAllAccounts(accounts);
@@ -269,7 +265,7 @@ async function handleRegisterSubmit(e) {
 
   if (typeof isCloudEnabled === 'function' && isCloudEnabled()) {
     try {
-      const res = await cloudRegisterAccount(username, name, pwHash, avatar, newUser.joinedDate);
+      const res = await cloudRegisterAccount(username, name, password, avatar, newUser.joinedDate);
       if (res && res.ok && res.user) {
         const cloudAcc = { ...newUser, ...res.user, passwordHash: pwHash, isGuest: false };
         const accounts = loadAllAccounts();
@@ -330,6 +326,67 @@ function logoutAccount() {
   openAuthModal('login');
 }
 
+function updateEditAvatarPreview() {
+  const previewEl = document.getElementById('edit-avatar-preview');
+  const valEl = document.getElementById('edit-avatar-value');
+  const nameEl = document.getElementById('edit-prof-name');
+  if (!previewEl || !valEl) return;
+  const name = (nameEl ? nameEl.value.trim() : '') || (currentUser ? currentUser.name : 'User');
+  previewEl.innerHTML = getAvatarMarkup(valEl.value || 'av-sky', name, 'w-14 h-14 rounded-2xl text-xl');
+}
+
+function renderEditEmojiGrid(selectedVal) {
+  const grid = document.getElementById('edit-avatar-emoji-grid');
+  if (!grid) return;
+  const activeSym = String(selectedVal || '').startsWith('emoji:') ? String(selectedVal).slice(6) : '';
+  grid.innerHTML = '';
+  AVATAR_EMOTICON_CHOICES.forEach(sym => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const active = sym === activeSym;
+    btn.className = `h-9 rounded-xl flex items-center justify-center text-lg transition-all ${
+      active
+        ? 'bg-indigo-600/25 ring-2 ring-indigo-400 scale-105'
+        : 'app-subsurface border border-slate-700/50 hover:border-indigo-400/60 hover:scale-105'
+    }`;
+    btn.textContent = sym;
+    btn.onclick = () => selectEditAvatarEmoji(sym);
+    grid.appendChild(btn);
+  });
+}
+
+function selectEditAvatarEmoji(sym) {
+  playSfx('click');
+  const valEl = document.getElementById('edit-avatar-value');
+  const customInp = document.getElementById('edit-avatar-custom-emoji');
+  if (valEl) valEl.value = `emoji:${sym}`;
+  if (customInp) customInp.value = sym;
+  renderEditEmojiGrid(`emoji:${sym}`);
+  updateEditAvatarPreview();
+}
+
+function handleCustomEmojiInput(raw) {
+  const cleaned = String(raw || '').trim();
+  if (!cleaned) return;
+  const valEl = document.getElementById('edit-avatar-value');
+  if (valEl) valEl.value = `emoji:${cleaned.slice(0, 8)}`;
+  renderEditEmojiGrid(valEl ? valEl.value : '');
+  updateEditAvatarPreview();
+}
+
+function switchEditAvatarTab(mode) {
+  ['color', 'emoji'].forEach(m => {
+    const tabBtn = document.getElementById(`edit-avtab-${m}`);
+    const panel = document.getElementById(`edit-avpanel-${m}`);
+    if (tabBtn) {
+      tabBtn.className = m === mode
+        ? 'py-1.5 rounded-lg bg-indigo-600 text-white text-[11px] font-bold transition'
+        : 'py-1.5 rounded-lg text-slate-400 text-[11px] font-semibold transition';
+    }
+    if (panel) panel.classList.toggle('hidden', m !== mode);
+  });
+}
+
 function openEditProfileModal() {
   if (!currentUser) return;
   if (currentUser.isGuest) {
@@ -338,9 +395,20 @@ function openEditProfileModal() {
     return;
   }
   playSfx('click');
+  const curAvatar = (currentUser.avatar && (currentUser.avatar.startsWith('emoji:') || AVATAR_PALETTES[currentUser.avatar]))
+    ? currentUser.avatar
+    : 'av-sky';
   document.getElementById('edit-prof-name').value = currentUser.name;
   document.getElementById('edit-prof-bio').value = currentUser.bio || '';
-  renderAvatarPicker('edit-avatar-picker', 'edit-avatar-value', currentUser.avatar || 'av-sky');
+  document.getElementById('edit-avatar-value').value = curAvatar;
+
+  renderAvatarPicker('edit-avatar-picker', 'edit-avatar-value', curAvatar, () => updateEditAvatarPreview());
+  renderEditEmojiGrid(curAvatar);
+  const customInp = document.getElementById('edit-avatar-custom-emoji');
+  if (customInp) customInp.value = curAvatar.startsWith('emoji:') ? curAvatar.slice(6) : '';
+
+  switchEditAvatarTab(curAvatar.startsWith('emoji:') ? 'emoji' : 'color');
+  updateEditAvatarPreview();
   document.getElementById('modal-edit-profile').classList.remove('hidden');
 }
 

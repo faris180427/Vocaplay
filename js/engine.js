@@ -26,8 +26,13 @@ function showMistakeReview(item) {
 
 function stopAllActiveGameTimers() {
   clearInterval(fastVocabTimerInterval);
+  if (typeof mysteryRevealInterval !== 'undefined') clearInterval(mysteryRevealInterval);
   clearInterval(shooterInterval);
   clearInterval(shooterSpawnInterval);
+  if (typeof shooterAnimFrame !== 'undefined' && shooterAnimFrame) {
+    cancelAnimationFrame(shooterAnimFrame);
+    shooterAnimFrame = null;
+  }
   hideMistakeReview();
 }
 
@@ -49,8 +54,8 @@ function advanceOrFinishRound(nextCallback, delayMs = 800) {
 }
 
 function addSuccessScore(points) {
-  playSfx('correct');
   streak++;
+  playSfx('correct', streak);
   totalQuestionsAnswered++;
   correctAnswersCount++;
 
@@ -60,7 +65,8 @@ function addSuccessScore(points) {
   if (streak >= 5) unlockBadge('streak_5');
 
   const earned = Math.round(points * conf.xpMult * streakMultiplier);
-  const xpGain = Math.round(15 * conf.xpMult);
+  const boostMult = (typeof isXpBoostActive === 'function' && isXpBoostActive()) ? 2 : 1;
+  const xpGain = Math.round(15 * conf.xpMult) * boostMult;
   const gemGain = 2;
 
   score += earned;
@@ -154,7 +160,13 @@ function startGame(mode, keepWeakFlag = false) {
   if (!keepWeakFlag) isPracticingWeakWords = false;
   currentMode = mode;
   score = 0;
-  lives = mode === 'memory-flip' ? 6 : 3;
+  lives = 3;
+  if (currentUser && (currentUser.extraShields || 0) > 0) {
+    currentUser.extraShields--;
+    lives = 4;
+    saveCurrentAccountState();
+    showToast('Extra Shield aktif (+1 Nyawa ekstra)!', '✓');
+  }
   streak = 0;
   sessionXP = 0;
   sessionDiamonds = 0;
@@ -166,7 +178,7 @@ function startGame(mode, keepWeakFlag = false) {
 
   updateHeaderStats();
 
-  ['tab-learn', 'tab-decks', 'tab-quests', 'tab-leaderboard', 'tab-profile', 'screen-results'].forEach(id => {
+  ['tab-learn', 'tab-path', 'tab-decks', 'tab-quests', 'tab-leaderboard', 'tab-profile', 'screen-results'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
@@ -179,25 +191,24 @@ function startGame(mode, keepWeakFlag = false) {
 
   const modeNames = {
     'fast-vocab': 'Fast Vocab',
-    'word-speller': 'Word Speller',
     'sentence-builder': 'Sentence Builder',
-    'memory-flip': 'Memory Flip',
-    'word-scramble': 'Word Scramble',
-    'odd-one-out': 'Odd One Out',
     'listening-dictation': 'Acoustic Dictation',
-    'meaning-hunter': 'Meaning Hunter',
-    'balloon-catcher': 'Balloon Catcher',
     'voice-duel': 'Voice Duel',
-    'word-shooter': 'Penembak Kata'
+    'word-shooter': 'Penembak Kata',
+    'vocab-wordle': 'Vocab Wordle',
+    'word-connections': 'Word Connections',
+    'boss-battle': 'Lexicon Boss Battle',
+    'dialogue-quest': 'Dialogue Quest',
+    'mixed-lesson': 'Jalur Belajar'
   };
   document.getElementById('gameplay-mode-badge').textContent = modeNames[mode] || mode;
   document.getElementById('gameplay-level-badge').textContent = isPracticingWeakWords ? 'WEAK' : currentCEFR;
 
   [
-    'subgame-fast-vocab', 'subgame-word-speller', 'subgame-sentence-builder',
-    'subgame-memory-flip', 'subgame-word-scramble', 'subgame-odd-one-out',
-    'subgame-listening-dictation', 'subgame-meaning-hunter', 'subgame-balloon-catcher',
-    'subgame-voice-duel', 'subgame-word-shooter'
+    'subgame-fast-vocab', 'subgame-sentence-builder', 'subgame-listening-dictation',
+    'subgame-voice-duel', 'subgame-word-shooter', 'subgame-vocab-wordle',
+    'subgame-word-connections', 'subgame-boss-battle', 'subgame-dialogue-quest',
+    'subgame-mixed-lesson'
   ].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
@@ -207,16 +218,15 @@ function startGame(mode, keepWeakFlag = false) {
   if (activeSub) activeSub.classList.remove('hidden');
 
   if (mode === 'fast-vocab') nextFastVocabRound();
-  else if (mode === 'word-speller') nextWordSpellerRound();
   else if (mode === 'sentence-builder') nextSentenceBuilderRound();
-  else if (mode === 'memory-flip') initMemoryFlipGame();
-  else if (mode === 'word-scramble') nextWordScrambleRound();
-  else if (mode === 'odd-one-out') nextOddOneOutRound();
   else if (mode === 'listening-dictation') nextListeningDictationRound();
-  else if (mode === 'meaning-hunter') nextMeaningHunterRound();
-  else if (mode === 'balloon-catcher') nextBalloonCatcherRound();
   else if (mode === 'voice-duel') nextVoiceDuelRound();
   else if (mode === 'word-shooter') startWordShooterGame();
+  else if (mode === 'vocab-wordle') startVocabWordleGame();
+  else if (mode === 'word-connections') startWordConnectionsGame();
+  else if (mode === 'boss-battle') startBossBattleGame();
+  else if (mode === 'dialogue-quest') startDialogueQuestGame(0);
+  else if (mode === 'mixed-lesson') initMixedLessonUI();
 }
 
 function endGameSession() {
@@ -259,10 +269,33 @@ function endGameSession() {
     if (currentUser.lastActiveDate !== today) {
       const yesterday = new Date(Date.now() - 86400000);
       const yISO = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
-      currentUser.streak = currentUser.lastActiveDate === yISO ? currentUser.streak + 1 : 1;
+      if (currentUser.lastActiveDate === yISO) {
+        currentUser.streak = (currentUser.streak || 0) + 1;
+      } else if ((currentUser.streakFreezes || 0) > 0 && (currentUser.streak || 0) > 0) {
+        currentUser.streakFreezes--;
+        currentUser.streak = (currentUser.streak || 0) + 1;
+        showToast('Streak Freeze melindungi streak-mu!', '✓');
+      } else {
+        currentUser.streak = 1;
+      }
       currentUser.lastActiveDate = today;
     }
     currentUser.weekDaysActive[getMondayDayIndex()] = true;
+
+    // Personal Best per mode
+    if (!currentUser.highScores || typeof currentUser.highScores !== 'object') {
+      currentUser.highScores = {};
+    }
+    const prevBest = currentUser.highScores[currentMode] || 0;
+    const isNewRecord = score > prevBest && score > 0;
+    if (isNewRecord) currentUser.highScores[currentMode] = score;
+    const pbEl = document.getElementById('results-personal-best');
+    if (pbEl) {
+      pbEl.textContent = isNewRecord
+        ? `Rekor Baru! ${score} pts`
+        : `Rekor Tertinggi: ${Math.max(prevBest, score)} pts`;
+    }
+
     saveCurrentAccountState();
     if (typeof checkMilestoneBadges === 'function') checkMilestoneBadges();
   }
@@ -315,21 +348,17 @@ document.addEventListener('keydown', (e) => {
   const gameplayVisible = !document.getElementById('screen-gameplay')?.classList.contains('hidden');
   if (!gameplayVisible) return;
 
+  if (currentMode === 'vocab-wordle' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (e.key === 'Enter' || e.key === 'Backspace' || /^[a-zA-Z]$/.test(e.key)) {
+      e.preventDefault();
+      handleWordleKey(e.key);
+      return;
+    }
+  }
+
   if (e.key === 'Enter') {
     const active = document.activeElement?.id;
-    if (currentMode === 'word-scramble' && active === 'scramble-user-input') checkScrambleAnswer();
-    else if (currentMode === 'listening-dictation' && active === 'dictation-user-input') checkDictationAnswer();
+    if (currentMode === 'listening-dictation' && active === 'dictation-user-input') checkDictationAnswer();
     else if (currentMode === 'sentence-builder') checkSentenceSolution();
-  } else if (currentMode === 'word-speller' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    if (e.key === 'Backspace') {
-      if (spellerConstructedWord.length > 0) {
-        e.preventDefault();
-        removeSpellerTileAt(spellerConstructedWord.length - 1);
-      }
-    } else if (/^[a-zA-Z]$/.test(e.key)) {
-      const ch = e.key.toLowerCase();
-      const tile = spellerTileButtons.find(t => !t.used && t.char.toLowerCase() === ch);
-      if (tile) handleSpellerTileClick(tile);
-    }
   }
 });

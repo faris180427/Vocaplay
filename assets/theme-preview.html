@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vocaplay — Perbandingan 3 Palet Warna</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-[#0B0D12] text-slate-100 min-h-screen p-6 sm:p-10">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-8 border-b border-slate-800">
+      <div>
+        <span class="mono text-[11px] uppercase tracking-wider text-sky-400 font-bold">Vocaplay Color System Preview</span>
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">Perbandingan 3 Rekomendasi Palet Warna</h1>
+        <p class="text-xs text-slate-400 mt-1">Bandingkan tampilan Sidebar, Kartu Game, Progress Kosakata, dan tombol di Mode Gelap maupun Mode Terang.</p>
+      </div>
+      <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 p-1.5 rounded-2xl">
+        <button id="btn-dark" onclick="setPreviewMode('dark')" class="px-4 py-1.5 rounded-xl bg-sky-500 text-white text-xs font-bold transition">Dark Mode</button>
+        <button id="btn-light" onclick="setPreviewMode('light')" class="px-4 py-1.5 rounded-xl text-slate-400 text-xs font-semibold transition">Light Mode</button>
+      </div>
+    </div>
+
+    <!-- 3 PALETTE CARDS -->
+    <div id="palettes-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-6"></div>
+  </div>
+
+  <script>
+    const PALETTES = [
+      {
+        id: 'indigo',
+        badge: 'Opsi 1 • Rekomendasi Utama',
+        title: 'Warm Charcoal + Indigo & Coral',
+        vibe: 'Modern, enerjik, ramah untuk nuansa "Learn and Fun".',
+        dark: {
+          bg: '#11131A', sidebar: '#151822', card: '#1A1D27', sub: '#131620', border: '#2A2E3D',
+          text: '#F8FAFC', muted: '#94A3B8', primary: '#6366F1', primaryText: '#FFFFFF',
+          accent: '#F97316', success: '#10B981', pillBg: 'rgba(99,102,241,0.16)', pillText: '#818CF8'
+        },
+        light: {
+          bg: '#F8F9FC', sidebar: '#FFFFFF', card: '#FFFFFF', sub: '#F1F3F9', border: '#DCE1EE',
+          text: '#0F172A', muted: '#475569', primary: '#4F46E5', primaryText: '#FFFFFF',
+          accent: '#EA580C', success: '#059669', pillBg: 'rgba(79,70,229,0.12)', pillText: '#4338CA'
+        }
+      },
+      {
+        id: 'forest',
+        badge: 'Opsi 2 • Tenang & Fokus',
+        title: 'Deep Forest + Emerald & Gold',
+        vibe: 'Nyaman di mata untuk sesi belajar kosakata jangka panjang.',
+        dark: {
+          bg: '#0D1412', sidebar: '#101A17', card: '#14201C', sub: '#0F1916', border: '#23352F',
+          text: '#F3FAF7', muted: '#93AFA4', primary: '#10B981', primaryText: '#052E16',
+          accent: '#F59E0B', success: '#34D399', pillBg: 'rgba(16,185,129,0.16)', pillText: '#34D399'
+        },
+        light: {
+          bg: '#FAF8F4', sidebar: '#FFFFFF', card: '#FFFFFF', sub: '#F3EFE6', border: '#E4DEC9',
+          text: '#14241E', muted: '#4A6359', primary: '#059669', primaryText: '#FFFFFF',
+          accent: '#D97706', success: '#047857', pillBg: 'rgba(5,150,105,0.12)', pillText: '#047857'
+        }
+      },
+      {
+        id: 'carbon',
+        badge: 'Opsi 3 • Minimalis Tajam',
+        title: 'True Carbon + Electric Teal',
+        vibe: 'Netral tanpa bias biru, membuat elemen game & badge menonjol.',
+        dark: {
+          bg: '#121215', sidebar: '#16161A', card: '#1C1C21', sub: '#141418', border: '#2D2D35',
+          text: '#FAFAFA', muted: '#A1A1AA', primary: '#14B8A6', primaryText: '#042F2E',
+          accent: '#F59E0B', success: '#22C55E', pillBg: 'rgba(20,184,166,0.16)', pillText: '#2DD4BF'
+        },
+        light: {
+          bg: '#F7F7F8', sidebar: '#FFFFFF', card: '#FFFFFF', sub: '#EFEFF2', border: '#DCDCE2',
+          text: '#18181B', muted: '#52525B', primary: '#0D9488', primaryText: '#FFFFFF',
+          accent: '#D97706', success: '#16A34A', pillBg: 'rgba(13,148,136,0.12)', pillText: '#0F766E'
+        }
+      }
+    ];
+
+    let currentMode = 'dark';
+
+    function setPreviewMode(mode) {
+      currentMode = mode;
+      document.getElementById('btn-dark').className = mode === 'dark'
+        ? 'px-4 py-1.5 rounded-xl bg-sky-500 text-white text-xs font-bold transition'
+        : 'px-4 py-1.5 rounded-xl text-slate-400 text-xs font-semibold transition';
+      document.getElementById('btn-light').className = mode === 'light'
+        ? 'px-4 py-1.5 rounded-xl bg-sky-500 text-white text-xs font-bold transition'
+        : 'px-4 py-1.5 rounded-xl text-slate-400 text-xs font-semibold transition';
+      renderAll();
+    }
+
+    function renderAll() {
+      const grid = document.getElementById('palettes-grid');
+      grid.innerHTML = '';
+
+      PALETTES.forEach(p => {
+        const t = p[currentMode];
+        const wrap = document.createElement('div');
+        wrap.className = 'rounded-3xl border border-slate-800 bg-slate-900/70 p-4 flex flex-col gap-4 shadow-xl';
+
+        wrap.innerHTML = `
+          <div>
+            <span class="mono text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full" style="background:${t.pillBg}; color:${t.pillText}">${p.badge}</span>
+            <h2 class="text-base font-extrabold text-white mt-2">${p.title}</h2>
+            <p class="text-xs text-slate-400 mt-0.5">${p.vibe}</p>
+          </div>
+
+          <!-- MINI APP MOCKUP -->
+          <div class="rounded-2xl overflow-hidden border shadow-md flex" style="background:${t.bg}; border-color:${t.border}; color:${t.text}; min-height: 360px;">
+            <!-- Mini Sidebar -->
+            <div class="w-28 p-3 border-r flex flex-col justify-between flex-shrink-0" style="background:${t.sidebar}; border-color:${t.border};">
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2 mb-3">
+                  <div class="w-6 h-6 rounded-lg flex items-center justify-center font-black text-[10px]" style="background:${t.primary}; color:${t.primaryText}">V</div>
+                  <div>
+                    <div class="text-[11px] font-extrabold leading-none">Vocaplay</div>
+                    <div class="text-[8px]" style="color:${t.muted}">Learn and Fun</div>
+                  </div>
+                </div>
+                <div class="px-2 py-1.5 rounded-lg text-[10px] font-bold" style="background:${t.pillBg}; color:${t.pillText}">Beranda</div>
+                <div class="px-2 py-1.5 rounded-lg text-[10px] font-semibold" style="color:${t.muted}">Jalur Belajar</div>
+                <div class="px-2 py-1.5 rounded-lg text-[10px] font-semibold" style="color:${t.muted}">Topik & Dek</div>
+                <div class="px-2 py-1.5 rounded-lg text-[10px] font-semibold" style="color:${t.muted}">Ranking</div>
+                <div class="px-2 py-1.5 rounded-lg text-[10px] font-semibold" style="color:${t.muted}">Profil</div>
+              </div>
+              <div class="p-1.5 rounded-lg text-[9px] font-bold flex items-center gap-1.5 border" style="background:${t.sub}; border-color:${t.border};">
+                <span class="w-4 h-4 rounded-md flex items-center justify-center text-[8px] font-black" style="background:${t.primary}; color:${t.primaryText}">F</span>
+                <span class="truncate">Faris18</span>
+              </div>
+            </div>
+
+            <!-- Mini Workspace -->
+            <div class="flex-1 p-3.5 flex flex-col gap-3 min-w-0">
+              <!-- Mini Topbar -->
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex-1 px-2.5 py-1.5 rounded-lg border text-[10px] truncate" style="background:${t.sub}; border-color:${t.border}; color:${t.muted}">Cari 4.080+ kata...</div>
+                <span class="mono px-2 py-1 rounded-lg text-[10px] font-bold" style="background:${t.accent}22; color:${t.accent}">5 Streak</span>
+                <span class="mono px-2 py-1 rounded-lg text-[10px] font-bold" style="background:${t.pillBg}; color:${t.pillText}">180 XP</span>
+              </div>
+
+              <!-- Mini Game Card 1 -->
+              <div class="p-3 rounded-xl border" style="background:${t.card}; border-color:${t.border};">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-xs font-extrabold">Vocab Wordle</span>
+                  <span class="mono text-[9px] font-bold px-2 py-0.5 rounded-full" style="background:${t.pillBg}; color:${t.pillText}">Word Puzzle</span>
+                </div>
+                <p class="text-[10px] leading-snug mb-2.5" style="color:${t.muted}">Tebak kata 5 huruf dalam 6 percobaan dengan arti langsung.</p>
+                <div class="flex gap-1.5">
+                  <span class="px-2.5 py-1.5 rounded-lg border text-[10px] font-bold" style="background:${t.sub}; border-color:${t.border}; color:${t.text}">Dek</span>
+                  <span class="flex-1 py-1.5 rounded-lg text-center text-[10px] font-extrabold" style="background:${t.primary}; color:${t.primaryText}">Mainkan →</span>
+                </div>
+              </div>
+
+              <!-- Mini Progress Card -->
+              <div class="p-3 rounded-xl border" style="background:${t.card}; border-color:${t.border};">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-[11px] font-bold">Progress Kosakata</span>
+                  <span class="mono text-[9px] font-bold" style="color:${t.success}">320 / 4.080</span>
+                </div>
+                <div class="w-full h-2 rounded-full overflow-hidden mb-2" style="background:${t.sub}">
+                  <div class="h-full rounded-full" style="width:42%; background:${t.primary}"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-1.5">
+                  <div class="py-1 rounded-lg text-center text-[9px] font-bold border" style="background:${t.success}1A; border-color:${t.success}44; color:${t.success}">Sudah Dipelajari</div>
+                  <div class="py-1 rounded-lg text-center text-[9px] font-bold border" style="background:${t.accent}1A; border-color:${t.accent}44; color:${t.accent}">Latih Kata Sulit</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- HEX SWATCHES -->
+          <div class="grid grid-cols-5 gap-1.5 pt-1">
+            ${[
+              ['BG', t.bg],
+              ['Card', t.card],
+              ['Border', t.border],
+              ['Primary', t.primary],
+              ['Accent', t.accent]
+            ].map(([name, hex]) => `
+              <div class="text-center">
+                <div class="h-6 rounded-lg border border-white/10 mb-1" style="background:${hex}"></div>
+                <div class="text-[9px] font-bold text-slate-300">${name}</div>
+                <div class="mono text-[8px] text-slate-500">${hex}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+        grid.appendChild(wrap);
+      });
+    }
+
+    renderAll();
+  </script>
+</body>
+</html>

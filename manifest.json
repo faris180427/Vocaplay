@@ -1,11 +1,11 @@
 {
-  "name": "Vocaplay — English Language Studio",
+  "name": "Vocaplay — Learn and Fun",
   "short_name": "Vocaplay",
-  "description": "4.080+ kosakata bahasa Inggris standar Oxford dengan 11 mode permainan interaktif, audio TTS, dan Memory Vault SRS.",
+  "description": "4.080+ kosakata bahasa Inggris standar Oxford dengan 9 mode permainan interaktif, audio TTS, dan Memory Vault SRS.",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#080C14",
-  "theme_color": "#080C14",
+  "background_color": "#11131A",
+  "theme_color": "#11131A",
   "icons": [
     {
       "src": "assets/logos/logo-concept-4-precision.svg",

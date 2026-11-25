@@ -34,7 +34,7 @@ function switchAppTab(tabId) {
   playSfx('click');
   stopAllActiveGameTimers();
 
-  ['tab-learn', 'tab-decks', 'tab-quests', 'tab-leaderboard', 'tab-profile', 'screen-gameplay', 'screen-results'].forEach(id => {
+  ['tab-learn', 'tab-path', 'tab-decks', 'tab-quests', 'tab-leaderboard', 'tab-profile', 'screen-gameplay', 'screen-results'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
@@ -47,20 +47,21 @@ function switchAppTab(tabId) {
     target.classList.add('animate-fade-in');
   }
 
-  ['learn', 'decks', 'quests', 'leaderboard', 'profile'].forEach(name => {
+  ['learn', 'path', 'decks', 'quests', 'leaderboard', 'profile'].forEach(name => {
     const btn = document.getElementById(`nav-btn-${name}`);
-    if (btn) btn.className = name === tabId ? 'flex flex-col items-center text-sky-400 p-1' : 'flex flex-col items-center text-slate-400 p-1';
+    if (btn) btn.className = name === tabId ? 'flex flex-col items-center text-indigo-400 p-1' : 'flex flex-col items-center text-slate-400 p-1';
     const side = document.getElementById(`side-btn-${name}`);
     if (side) side.className = name === tabId
       ? 'sidebar-link-active flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-left'
-      : 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100/10 transition text-left';
+      : 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition text-left';
   });
 
   ['listening', 'speaking', 'vocab'].forEach(s => {
     const el = document.getElementById(`side-btn-${s}`);
-    if (el) el.className = 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100/10 transition text-left';
+    if (el) el.className = 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition text-left';
   });
 
+  if (tabId === 'path' && typeof renderLearningPath === 'function') renderLearningPath();
   if (tabId === 'decks') renderDecksHub();
   if (tabId === 'leaderboard') renderLeaderboard();
   if (tabId === 'profile') renderProfile();
@@ -74,7 +75,7 @@ function filterHubSection(section) {
     const pill = document.getElementById(`hub-pill-${s}`);
     if (pill) {
       pill.className = s === section
-        ? 'tactile-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-500 text-white'
+        ? 'tactile-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white'
         : 'tactile-btn px-3 py-1.5 rounded-xl text-xs font-semibold app-surface border border-slate-200';
     }
   });
@@ -160,11 +161,11 @@ function updateDailyRecommendationCard() {
   }
 
   const dailyModes = [
-    { mode: 'fast-vocab', title: 'Fast Vocab — Pemanasan Cepat', desc: 'Latih refleks pengenalan kata dan pelafalan dalam 8 ronde singkat.' },
-    { mode: 'word-speller', title: 'Word Speller — Uji Ejaan Tepat', desc: 'Susun ejaan kosakata bahasa Inggris berdasarkan fonetik IPA.' },
-    { mode: 'listening-dictation', title: 'Acoustic Dictation — Fokus Mendengar', desc: 'Dengarkan pelafalan natural lalu tuliskan ejaan yang akurat.' },
-    { mode: 'sentence-builder', title: 'Sentence Builder — Tata Bahasa', desc: 'Rangkai frasa acak menjadi kalimat bahasa Inggris yang tepat.' },
-    { mode: 'word-shooter', title: 'Penembak Kata — Latihan Mengetik', desc: 'Ketik kata bahasa Inggris yang jatuh untuk melatih kecepatan ingat.' }
+    { mode: 'vocab-wordle', title: 'Vocab Wordle — Teka-Teki 5 Huruf', desc: 'Asah logika ejaan bahasa Inggris dengan petunjuk warna hijau & kuning.' },
+    { mode: 'word-shooter', title: 'Penembak Kata — Arcade Laser', desc: 'Kunci target kata yang jatuh dan ledakkan tiap huruf dengan kombo laser.' },
+    { mode: 'word-connections', title: 'Word Connections — Puzzle 4x4', desc: 'Kelompokkan 16 kata acak menjadi 4 kategori makna tersembunyi.' },
+    { mode: 'boss-battle', title: 'Lexicon Boss Battle — Mini RPG', desc: 'Kalahkan 3 Boss beruntun dengan Critical Hit dan serangan Ultimate.' },
+    { mode: 'dialogue-quest', title: 'Dialogue Quest — Roleplay Nyata', desc: 'Latih percakapan bahasa Inggris di kafe London, bandara, & wawancara kerja.' }
   ];
   const dayIdx = new Date().getDate() % dailyModes.length;
   const pick = dailyModes[dayIdx];
@@ -175,10 +176,60 @@ function updateDailyRecommendationCard() {
   btnEl.onclick = () => startGame(pick.mode);
 }
 
+/* ---------- 2x XP BOOST (10 MENIT) ---------- */
+let xpBoostInterval = null;
+
+function isXpBoostActive() {
+  return Boolean(currentUser && currentUser.xpBoostUntil && Date.now() < currentUser.xpBoostUntil);
+}
+
+function activateXpBoost(minutes = 10) {
+  if (!currentUser) return;
+  const now = Date.now();
+  const base = Math.max(now, currentUser.xpBoostUntil || 0);
+  currentUser.xpBoostUntil = base + minutes * 60 * 1000;
+  saveCurrentAccountState();
+  updateXpBoostUI();
+}
+
+function updateXpBoostUI() {
+  const pill = document.getElementById('xp-boost-pill');
+  const timerEl = document.getElementById('xp-boost-timer');
+  if (!pill || !timerEl) return;
+
+  if (!isXpBoostActive()) {
+    pill.classList.add('hidden');
+    pill.classList.remove('flex');
+    clearInterval(xpBoostInterval);
+    xpBoostInterval = null;
+    return;
+  }
+
+  pill.classList.remove('hidden');
+  pill.classList.add('flex');
+  const renderRemaining = () => {
+    if (!isXpBoostActive()) {
+      pill.classList.add('hidden');
+      pill.classList.remove('flex');
+      clearInterval(xpBoostInterval);
+      xpBoostInterval = null;
+      return;
+    }
+    const remSec = Math.max(0, Math.ceil((currentUser.xpBoostUntil - Date.now()) / 1000));
+    const m = String(Math.floor(remSec / 60)).padStart(2, '0');
+    const s = String(remSec % 60).padStart(2, '0');
+    timerEl.textContent = `${m}:${s}`;
+  };
+  renderRemaining();
+  if (!xpBoostInterval) xpBoostInterval = setInterval(renderRemaining, 1000);
+}
+
 function refreshAllUI() {
   updateHeaderStats();
   updateDailyRecommendationCard();
+  updateXpBoostUI();
   if (typeof updateSpeechControlsUI === 'function') updateSpeechControlsUI();
+  if (typeof updateGamePaceUI === 'function') updateGamePaceUI();
   renderProfile();
   renderQuests();
   renderLeaderboard();
@@ -222,11 +273,35 @@ function showToast(message, icon = '✓') {
 }
 
 /* ---------- LEXICON DICTIONARY MODAL ---------- */
-function openNotebookModal() {
+let notebookDeckFilter = null;
+
+function openNotebookModal(deckId = null) {
   playSfx('click');
+  notebookDeckFilter = deckId || null;
+  const titleEl = document.querySelector('#modal-notebook h3');
+  const subEl = document.querySelector('#modal-notebook p');
+  if (notebookDeckFilter) {
+    const deck = VOCAB_DECKS.find(d => d.id === notebookDeckFilter) || { title: 'Memory Vault (Kata Lemah)', desc: 'Daftar kata yang perlu dilatih ulang.' };
+    if (titleEl) titleEl.textContent = `Daftar Kata: ${deck.title}`;
+    if (subEl) subEl.innerHTML = `${deck.desc} • <button type="button" onclick="openNotebookModal(null)" class="text-sky-400 font-bold hover:underline">Lihat Semua 4.080+ Kata</button>`;
+  } else {
+    if (titleEl) titleEl.textContent = 'Kamus & Lexicon Laboratory';
+    if (subEl) subEl.textContent = 'Cari dari 4.080+ kata CEFR A1–C1 lengkap dengan fonetik dan contoh kalimat.';
+  }
+  const searchInp = document.getElementById('notebook-search-input');
+  if (searchInp && notebookDeckFilter) searchInp.value = '';
+  const cefrSel = document.getElementById('notebook-cefr-filter');
+  if (cefrSel && notebookDeckFilter) cefrSel.value = 'ALL';
+  const statusSel = document.getElementById('notebook-status-filter');
+  if (statusSel && notebookDeckFilter) statusSel.value = 'ALL';
+
   document.getElementById('modal-notebook').classList.remove('hidden');
   filterNotebookWords();
   unlockBadge('lexicon_keeper');
+}
+
+function openDeckWordList(deckId) {
+  openNotebookModal(deckId);
 }
 
 function openNotebookWithStatus(status) {
@@ -271,16 +346,16 @@ function renderNotebookList(items) {
         <div class="w-14 h-14 rounded-xl overflow-hidden lexical-img-frame flex-shrink-0 border border-slate-200">${renderWordImgTag(item, 'w-full h-full object-cover', true)}</div>
         <div>
           <div class="flex items-center flex-wrap gap-1.5">
-            <span class="font-bold text-slate-900 dark:text-slate-100 text-sm">${item.word}</span>
-            <span class="code-font text-[10px] font-bold text-sky-400 bg-sky-500/15 px-1 rounded border border-sky-400/30">${item.cefr}</span>
+            <span class="font-bold text-slate-900 dark:text-slate-100 text-sm">${escapeHtml(item.word)}</span>
+            <span class="code-font text-[10px] font-bold text-sky-400 bg-sky-500/15 px-1 rounded border border-sky-400/30">${escapeHtml(item.cefr)}</span>
             ${statusBadge}
-            <span class="code-font text-xs text-slate-500">${item.phonetic}</span>
+            <span class="code-font text-xs text-slate-500">${escapeHtml(item.phonetic)}</span>
           </div>
-          <p class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">${item.definition}</p>
-          <span class="text-[11px] text-slate-400 font-medium">${item.meaning} • ${item.category}</span>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">${escapeHtml(item.definition)}</p>
+          <span class="text-[11px] text-slate-400 font-medium">${escapeHtml(item.meaning)} • ${escapeHtml(item.category)}</span>
         </div>
       </div>
-      <button onclick="speakText('${item.word.replace(/'/g, "\\'")}')" class="tactile-btn p-1.5 rounded-lg border border-slate-200 hover:bg-white text-slate-600 dark:text-slate-300 text-xs flex-shrink-0" title="Dengarkan">${getAppIconSvg('volume', 'w-3.5 h-3.5')}</button>
+      <button data-word="${escapeHtml(item.word)}" onclick="speakText(this.dataset.word)" class="tactile-btn p-1.5 rounded-lg border border-slate-200 hover:bg-white text-slate-600 dark:text-slate-300 text-xs flex-shrink-0" title="Dengarkan">${getAppIconSvg('volume', 'w-3.5 h-3.5')}</button>
     `;
     list.appendChild(row);
   });
@@ -292,9 +367,14 @@ function filterNotebookWords() {
   const statusEl = document.getElementById('notebook-status-filter');
   const statusFilter = statusEl ? statusEl.value : 'ALL';
   const masteredSet = new Set(currentUser ? (currentUser.masteredWords || []) : []);
-  const weakSet = new Set(currentUser ? (currentUser.weakWords || []).map(w => w.id) : []);
+  const weakList = currentUser ? (currentUser.weakWords || []) : [];
+  const weakSet = new Set(weakList.map(w => w.id));
 
-  const filtered = VOCAB_DATA.filter(v => {
+  const sourcePool = notebookDeckFilter
+    ? getDeckVocab(notebookDeckFilter, VOCAB_DATA, weakList)
+    : VOCAB_DATA;
+
+  const filtered = sourcePool.filter(v => {
     const matchText = v.word.toLowerCase().includes(q) || (v.meaning || '').toLowerCase().includes(q) || (v.category || '').toLowerCase().includes(q);
     const matchCefr = cefrFilter === 'ALL' || v.cefr === cefrFilter;
     const matchStatus = statusFilter === 'ALL'
@@ -448,8 +528,71 @@ function refreshCloudBadges() {
   if (typeof updateCloudStatusPill === 'function') updateCloudStatusPill('auto');
 }
 
+/* ---------- FLASHCARD BELAJAR CEPAT ---------- */
+let flashcardDeck = [];
+let flashcardIndex = 0;
+let flashcardFlipped = false;
+
+function openFlashcardModal() {
+  playSfx('click');
+  const pool = getFilteredVocab();
+  flashcardDeck = pool.slice().sort(() => 0.5 - Math.random()).slice(0, 5);
+  if (!flashcardDeck.length) flashcardDeck = VOCAB_DATA.slice(0, 5);
+  flashcardIndex = 0;
+  flashcardFlipped = false;
+  renderFlashcardCard();
+  document.getElementById('modal-flashcard').classList.remove('hidden');
+}
+
+function closeFlashcardModal() {
+  playSfx('click');
+  document.getElementById('modal-flashcard').classList.add('hidden');
+}
+
+function renderFlashcardCard() {
+  const item = flashcardDeck[flashcardIndex];
+  if (!item) return;
+  document.getElementById('flashcard-counter').textContent = `Kartu ${flashcardIndex + 1} / ${flashcardDeck.length}`;
+  document.getElementById('fc-cefr').textContent = item.cefr || 'A1';
+  document.getElementById('fc-word').textContent = item.word || '';
+  document.getElementById('fc-phonetic').textContent = item.phonetic || '';
+  document.getElementById('fc-meaning').textContent = item.meaning || '';
+  document.getElementById('fc-definition').textContent = item.definition || '';
+  const ex = Array.isArray(item.sentence) ? item.sentence.join(' ') : (item.sentenceIndo || '');
+  document.getElementById('fc-example').textContent = ex ? `"${ex}"` : '';
+  document.getElementById('fc-back-content').classList.toggle('hidden', !flashcardFlipped);
+  document.getElementById('fc-tap-hint').classList.toggle('hidden', flashcardFlipped);
+  speakText(item.word);
+}
+
+function flipFlashcard() {
+  playSfx('click');
+  flashcardFlipped = !flashcardFlipped;
+  document.getElementById('fc-back-content').classList.toggle('hidden', !flashcardFlipped);
+  document.getElementById('fc-tap-hint').classList.toggle('hidden', flashcardFlipped);
+}
+
+function speakCurrentFlashcard() {
+  const item = flashcardDeck[flashcardIndex];
+  if (item) speakText(item.word);
+}
+
+function nextFlashcard() {
+  playSfx('click');
+  flashcardIndex = (flashcardIndex + 1) % flashcardDeck.length;
+  flashcardFlipped = false;
+  renderFlashcardCard();
+}
+
+function prevFlashcard() {
+  playSfx('click');
+  flashcardIndex = (flashcardIndex - 1 + flashcardDeck.length) % flashcardDeck.length;
+  flashcardFlipped = false;
+  renderFlashcardCard();
+}
+
 function closeAllOpenModals() {
-  ['modal-deck-picker', 'modal-notebook', 'modal-voicelab', 'modal-achievements', 'modal-custom-word', 'modal-auth', 'modal-edit-profile'].forEach(id => {
+  ['modal-flashcard', 'modal-deck-picker', 'modal-notebook', 'modal-voicelab', 'modal-achievements', 'modal-custom-word', 'modal-auth', 'modal-edit-profile'].forEach(id => {
     const el = document.getElementById(id);
     if (el && !el.classList.contains('hidden')) {
       el.classList.add('hidden');

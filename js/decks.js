@@ -28,7 +28,7 @@ function setCEFRLevel(levelKey, silent = false) {
   setActiveDeck(map[levelKey] || 'ox_a1', silent);
 }
 
-function renderDecksGrid(containerId, onSelectDeck) {
+function renderDecksGrid(containerId, onSelectDeck, showInspectBtn = false) {
   const grid = document.getElementById(containerId);
   if (!grid) return;
   grid.innerHTML = '';
@@ -40,24 +40,39 @@ function renderDecksGrid(containerId, onSelectDeck) {
   allDecks.forEach(deck => {
     const count = getDeckVocab(deck.id, VOCAB_DATA, weakList).length;
     const isActive = deck.id === activeDeckId;
-    const card = document.createElement('button');
-    card.type = 'button';
-    card.className = `tactile-btn app-surface text-left rounded-2xl p-4 border transition flex items-start gap-3.5 ${isActive ? 'border-sky-500 ring-2 ring-sky-500/30' : 'border-slate-200 hover:border-sky-400/60'}`;
+    const card = document.createElement(showInspectBtn ? 'div' : 'button');
+    if (!showInspectBtn) card.type = 'button';
+    card.className = `tactile-btn app-surface text-left rounded-2xl p-4 border transition flex flex-col justify-between gap-3 ${isActive ? 'border-indigo-500 ring-2 ring-indigo-500/30' : 'border-slate-200 hover:border-indigo-400/60'}`;
     card.innerHTML = `
-      <div class="w-12 h-14 rounded-xl bg-gradient-to-br ${deck.color} text-white flex flex-col items-center justify-center shadow-sm flex-shrink-0">
-        ${getAppIconSvg(deck.icon, 'w-6 h-6')}
-      </div>
-      <div class="min-w-0 flex-1">
-        <div class="flex items-center justify-between gap-1.5">
-          <span class="text-[10px] font-mono font-bold text-sky-400 bg-sky-500/15 px-1.5 py-0.5 rounded">${deck.tag}</span>
-          ${isActive ? '<span class="text-[10px] font-bold text-emerald-400">✓ Aktif</span>' : ''}
+      <div class="flex items-start gap-3.5 w-full">
+        <div class="w-12 h-14 rounded-xl bg-gradient-to-br ${deck.color} text-white flex flex-col items-center justify-center shadow-sm flex-shrink-0">
+          ${getAppIconSvg(deck.icon, 'w-6 h-6')}
         </div>
-        <h4 class="text-xs font-extrabold mt-1 truncate">${deck.title}</h4>
-        <p class="text-[11px] text-slate-500 mt-0.5 line-clamp-1">${deck.desc}</p>
-        <div class="text-[11px] font-mono font-bold text-sky-400 mt-1.5">${count.toLocaleString()} kartu</div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center justify-between gap-1.5">
+            <span class="text-[10px] font-mono font-bold text-indigo-400 bg-indigo-500/15 px-1.5 py-0.5 rounded">${deck.tag}</span>
+            ${isActive ? '<span class="text-[10px] font-bold text-emerald-400">✓ Aktif</span>' : ''}
+          </div>
+          <h4 class="text-xs font-extrabold mt-1 truncate">${deck.title}</h4>
+          <p class="text-[11px] text-slate-500 mt-0.5 line-clamp-1">${deck.desc}</p>
+          <div class="text-[11px] font-mono font-bold text-indigo-400 mt-1.5">${count.toLocaleString()} kartu</div>
+        </div>
       </div>
+      ${showInspectBtn ? `
+        <div class="flex items-center gap-2 pt-2.5 border-t border-slate-700/40 w-full">
+          <button type="button" data-action="inspect" class="tactile-btn flex-1 py-1.5 px-2.5 rounded-xl app-subsurface border border-slate-700/60 hover:border-indigo-400 text-[11px] font-bold text-slate-300 hover:text-indigo-400 transition">Lihat Kata</button>
+          <button type="button" data-action="select" class="tactile-btn flex-1 py-1.5 px-2.5 rounded-xl ${isActive ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-500'} text-white text-[11px] font-bold transition">${isActive ? 'Mainkan →' : 'Pakai Dek'}</button>
+        </div>
+      ` : ''}
     `;
-    card.onclick = () => onSelectDeck(deck);
+    if (showInspectBtn) {
+      const inspectBtn = card.querySelector('[data-action="inspect"]');
+      const selectBtn = card.querySelector('[data-action="select"]');
+      if (inspectBtn) inspectBtn.onclick = (e) => { e.stopPropagation(); openDeckWordList(deck.id); };
+      if (selectBtn) selectBtn.onclick = (e) => { e.stopPropagation(); onSelectDeck(deck); };
+    } else {
+      card.onclick = () => onSelectDeck(deck);
+    }
     grid.appendChild(card);
   });
 }
@@ -68,7 +83,7 @@ function renderDecksHub() {
   renderDecksGrid('decks-full-grid', (deck) => {
     setActiveDeck(deck.id);
     switchAppTab('learn');
-  });
+  }, true);
 }
 
 function openDeckPickerModal(targetMode = null) {
