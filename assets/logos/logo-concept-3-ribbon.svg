@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none">
+  <!-- Concept 3: The Origami VP Loop (Interlocking continuous ribbon forming 'V' and 'P') -->
+  <defs>
+    <linearGradient id="vp-ribbon-1" x1="50" y1="60" x2="160" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="vp-ribbon-2" x1="120" y1="60" x2="200" y2="150" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#6366F1"/>
+    </linearGradient>
+    <linearGradient id="vp-ribbon-shadow" x1="120" y1="120" x2="160" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E1B4B" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0F172A" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Deep Obsidian Container -->
+  <rect x="16" y="16" width="224" height="224" rx="48" fill="#080C14" stroke="#1E293B" stroke-width="3"/>
+
+  <!-- Left Stem of 'V' dropping to bottom vertex -->
+  <path d="M64 72 L96 72 L128 152 L96 152 Z" fill="url(#vp-ribbon-1)"/>
+  
+  <!-- Ribbon Fold: Bottom vertex turning up and rounding into 'P' loop -->
+  <path d="M96 152 L128 152 L150 192 Q128 200 110 192 Z" fill="#1D4ED8"/>
+
+  <!-- Right upward diagonal connecting to the P loop -->
+  <path d="M128 152 L152 92 L124 92 L106 136 Z" fill="url(#vp-ribbon-1)" opacity="0.9"/>
+
+  <!-- P Loop (Upper Right Arch & Play Triangle fusion) -->
+  <path d="M136 68 
+           H172 
+           C196 68 208 82 208 102 
+           C208 122 194 136 172 136 
+           H136 
+           Z" 
+        fill="url(#vp-ribbon-2)"/>
+  
+  <!-- Negative Space inside the P Loop (resembling a forward play notch) -->
+  <path d="M154 86 H170 C178 86 186 92 186 102 C186 112 178 118 170 118 H154 Z" fill="#080C14"/>
+
+  <!-- Subtle Ribbon Fold Shadow -->
+  <path d="M128 126 L150 148 L136 152 Z" fill="url(#vp-ribbon-shadow)"/>
+</svg>

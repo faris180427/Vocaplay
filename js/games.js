@@ -684,45 +684,52 @@ function nextVoiceDuelRound() {
   document.getElementById('duel-target-word').textContent = currentItem.word;
   document.getElementById('duel-phonetic').textContent = currentItem.phonetic;
   document.getElementById('duel-meaning').textContent = `"${currentItem.definition}"`;
-  document.getElementById('duel-status-text').textContent = 'Tap microphone and articulate clearly';
+  document.getElementById('duel-status-text').textContent = 'Tekan mikrofon dan ucapkan dengan jelas';
   document.getElementById('duel-result-feedback').innerHTML = '';
-  speakText(currentItem.word, 0.88);
+  speakText(currentItem.word);
 }
 
 function triggerDuelSpeechRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { showToast('Web Speech Recognition requires Chrome/Edge on localhost.', '⚠️'); return; }
+  const statusText = document.getElementById('duel-status-text');
+  const resultBox = document.getElementById('duel-result-feedback');
+  if (!SR) {
+    showToast('Browser ini belum mendukung Speech Recognition.', '!');
+    if (statusText) statusText.textContent = 'Mikrofon tidak didukung di browser ini (gunakan Chrome/Edge).';
+    if (resultBox) {
+      resultBox.innerHTML = `<button type="button" onclick="startGame('listening-dictation')" class="tactile-btn px-3.5 py-1.5 rounded-xl bg-sky-500/15 border border-sky-400/30 text-sky-400 font-bold text-xs">Beralih ke Dikte Akustik →</button>`;
+    }
+    return;
+  }
   playSfx('click');
   const recognizer = new SR();
-  recognizer.lang = 'en-US';
+  recognizer.lang = (typeof speechAccentPref !== 'undefined' && speechAccentPref) ? speechAccentPref : 'en-US';
   recognizer.interimResults = false;
 
   const micBtn = document.getElementById('btn-duel-mic');
-  const statusText = document.getElementById('duel-status-text');
-  const resultBox = document.getElementById('duel-result-feedback');
-  statusText.textContent = 'Listening... Articulate now.';
-  micBtn.classList.add('ring-2', 'ring-blue-600');
+  statusText.textContent = 'Mendengarkan... Ucapkan kata sekarang.';
+  micBtn.classList.add('ring-2', 'ring-sky-500');
   recognizer.start();
 
   recognizer.onresult = (event) => {
     const spoken = event.results[0][0].transcript.toLowerCase().trim();
     const target = currentItem.word.toLowerCase();
-    micBtn.classList.remove('ring-2', 'ring-blue-600');
+    micBtn.classList.remove('ring-2', 'ring-sky-500');
     if (spoken.includes(target)) {
-      statusText.textContent = `Match confirmed: "${spoken}"`;
-      resultBox.innerHTML = `<span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 text-xs font-mono font-bold rounded border border-emerald-200">✓ Articulation Verified</span>`;
+      statusText.textContent = `Cocok: "${spoken}"`;
+      resultBox.innerHTML = `<span class="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 text-xs font-mono font-bold rounded border border-emerald-400/30">✓ Pelafalan Akurat</span>`;
       addSuccessScore(160);
       unlockBadge('voice_master');
       triggerConfetti();
       advanceOrFinishRound(nextVoiceDuelRound, 1100);
     } else {
-      statusText.textContent = `Heard: "${spoken}"`;
-      resultBox.innerHTML = `<span class="px-2.5 py-0.5 bg-rose-50 text-rose-800 text-xs font-mono font-bold rounded border border-rose-200">Target: "${target}"</span>`;
+      statusText.textContent = `Terdengar: "${spoken}"`;
+      resultBox.innerHTML = `<span class="px-2.5 py-0.5 bg-rose-500/15 text-rose-400 text-xs font-mono font-bold rounded border border-rose-400/30">Target: "${target}"</span>`;
       handleMistake(currentItem);
     }
   };
-  recognizer.onerror = () => { micBtn.classList.remove('ring-2', 'ring-blue-600'); statusText.textContent = 'Audio error. Retry.'; };
-  recognizer.onend = () => micBtn.classList.remove('ring-2', 'ring-blue-600');
+  recognizer.onerror = () => { micBtn.classList.remove('ring-2', 'ring-sky-500'); statusText.textContent = 'Gagal membaca mikrofon. Coba lagi.'; };
+  recognizer.onend = () => micBtn.classList.remove('ring-2', 'ring-sky-500');
 }
 
 /* ---------- 11. PENEMBAK KATA (WORD SHOOTER) ---------- */
@@ -816,7 +823,7 @@ function handleShooterInput(rawVal) {
   if (hitIdx !== -1) {
     const hit = shooterActiveWords[hitIdx];
     currentItem = hit.item;
-    hit.el.innerHTML = `<div class="text-2xl pop-success">💥</div>`;
+    hit.el.innerHTML = `<div class="pop-success text-rose-400 flex items-center justify-center">${getAppIconSvg('zap', 'w-6 h-6')}</div>`;
     setTimeout(() => hit.el.remove(), 220);
     shooterActiveWords.splice(hitIdx, 1);
 
@@ -828,7 +835,7 @@ function handleShooterInput(rawVal) {
 
     addSuccessScore(140);
     speakText(hit.item.word, 0.9);
-    showToast(`Boom! "${hit.item.word}"`, '🚀');
+    showToast(`Destroyed: "${hit.item.word}"`, '✓');
 
     if (shooterDestroyed >= MAX_ROUNDS) {
       stopAllActiveGameTimers();
@@ -841,105 +848,4 @@ function handleShooterInput(rawVal) {
 
 function speakShooterFirstWord() {
   if (shooterActiveWords.length > 0) speakText(shooterActiveWords[0].item.word, 0.88);
-}
-
-/* ---------- 12. UJIAN KILAT TOEIC / IELTS ---------- */
-function nextExamQuizRound() {
-  clearInterval(examTimerInterval);
-  const pool = getFilteredVocab();
-  currentItem = drawNextWord(pool);
-  if (!currentItem) return;
-  roundNumber++;
-  updateRoundProgressUI();
-
-  document.getElementById('exam-badge').textContent = currentExamType === 'ielts' ? 'IELTS Academic Simulation' : 'TOEIC Business Simulation';
-
-  const fullSentence = Array.isArray(currentItem.sentence) ? currentItem.sentence.join(' ') : '';
-  const wordRegex = new RegExp(`\\b${currentItem.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-  const canCloze = fullSentence && isCleanSentence(currentItem) && wordRegex.test(fullSentence) && (roundNumber % 2 === 1);
-
-  const otherSource = pool.length >= 4 ? pool : VOCAB_DATA;
-  let options = [];
-
-  if (canCloze) {
-    const maskedSentence = fullSentence.replace(wordRegex, '________');
-    document.getElementById('exam-target-word').textContent = maskedSentence;
-    document.getElementById('exam-phonetic').textContent = `${currentItem.category} (${currentItem.cefr}) • Fill in the blank`;
-    document.getElementById('exam-question-prompt').textContent = `Clue: ${currentItem.definition || currentItem.meaning}`;
-
-    const correctWord = currentItem.word;
-    const distractors = [];
-    const used = new Set([correctWord.toLowerCase()]);
-    for (let i = 0; i < 40 && distractors.length < 3; i++) {
-      const cand = otherSource[Math.floor(Math.random() * otherSource.length)];
-      if (!cand || cand.id === currentItem.id || !cand.word) continue;
-      if (!used.has(cand.word.toLowerCase())) {
-        used.add(cand.word.toLowerCase());
-        distractors.push(cand.word);
-      }
-    }
-    options = [{ text: correctWord, correct: true }, ...distractors.map(d => ({ text: d, correct: false }))]
-      .sort(() => 0.5 - Math.random());
-  } else {
-    document.getElementById('exam-target-word').textContent = currentItem.word;
-    document.getElementById('exam-phonetic').textContent = `${currentItem.phonetic || ('/' + currentItem.word + '/')} • ${currentItem.category} (${currentItem.cefr})`;
-    document.getElementById('exam-question-prompt').textContent = 'Choose the accurate definition or equivalent:';
-
-    const correctDef = currentItem.definition || currentItem.meaning;
-    const distractors = [];
-    const used = new Set([correctDef.toLowerCase()]);
-    for (let i = 0; i < 30 && distractors.length < 3; i++) {
-      const cand = otherSource[Math.floor(Math.random() * otherSource.length)];
-      if (!cand || cand.id === currentItem.id) continue;
-      const text = cand.definition || cand.meaning;
-      if (text && !used.has(text.toLowerCase())) {
-        used.add(text.toLowerCase());
-        distractors.push(text);
-      }
-    }
-    options = [{ text: correctDef, correct: true }, ...distractors.map(d => ({ text: d, correct: false }))]
-      .sort(() => 0.5 - Math.random());
-  }
-
-  const grid = document.getElementById('exam-options-grid');
-  grid.innerHTML = '';
-  const letters = ['A', 'B', 'C', 'D'];
-  options.forEach((opt, idx) => {
-    const btn = document.createElement('button');
-    btn.className = 'animate-fade-in tactile-btn app-surface text-left p-3.5 rounded-xl border border-slate-200 hover:border-sky-400 text-xs font-medium flex items-start gap-2.5';
-    btn.innerHTML = `<span class="code-font font-bold text-sky-400">${letters[idx]}.</span><span>${opt.text}</span>`;
-    btn.onclick = () => {
-      clearInterval(examTimerInterval);
-      grid.querySelectorAll('button').forEach(b => b.disabled = true);
-      if (opt.correct) {
-        btn.classList.add('border-emerald-500', 'bg-emerald-500/15', 'pop-success');
-        addSuccessScore(150);
-        showToast('Correct answer!', '✓');
-        advanceOrFinishRound(nextExamQuizRound, 750);
-      } else {
-        btn.classList.add('border-rose-500', 'bg-rose-500/15', 'shake-anim');
-        grid.querySelectorAll('button').forEach((b, i) => {
-          if (options[i] && options[i].correct) b.classList.add('border-emerald-500', 'bg-emerald-500/15');
-        });
-        handleMistake(currentItem);
-        showToast('Incorrect option.', '✕');
-        advanceOrFinishRound(nextExamQuizRound, 1200);
-      }
-    };
-    grid.appendChild(btn);
-  });
-
-  examTimeLeft = 15;
-  const timerEl = document.getElementById('exam-timer-text');
-  if (timerEl) timerEl.textContent = `${examTimeLeft}s`;
-  examTimerInterval = setInterval(() => {
-    examTimeLeft--;
-    if (timerEl) timerEl.textContent = `${Math.max(0, examTimeLeft)}s`;
-    if (examTimeLeft <= 0) {
-      clearInterval(examTimerInterval);
-      handleMistake(currentItem);
-      showToast('Time expired!', '⏰');
-      advanceOrFinishRound(nextExamQuizRound, 900);
-    }
-  }, 1000);
 }

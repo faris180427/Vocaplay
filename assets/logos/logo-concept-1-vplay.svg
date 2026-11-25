@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none">
+  <!-- Concept 1: V-Play Monogram (Letter V + Forward Play Triangle) -->
+  <defs>
+    <linearGradient id="vp-grad-c1" x1="32" y1="32" x2="224" y2="224" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#6366F1"/>
+    </linearGradient>
+    <filter id="vp-glow-c1" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0284C7" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  
+  <!-- Outer Rounded Shield Container (Dark Obsidian) -->
+  <rect x="16" y="16" width="224" height="224" rx="48" fill="#0B1120" stroke="#1E293B" stroke-width="4"/>
+  
+  <!-- Geometric V-Play Monogram -->
+  <g filter="url(#vp-glow-c1)">
+    <!-- Left Wing of 'V' -->
+    <path d="M68 64 L108 64 L128 152 L104 152 Z" fill="url(#vp-grad-c1)" opacity="0.92"/>
+    
+    <!-- Right Wing forming 'Play' Arrow & Vertex -->
+    <path d="M128 152 L172 108 L188 124 L128 192 L88 192 Z" fill="#38BDF8"/>
+    
+    <!-- Forward Play Facet (Intersecting dynamic triangle) -->
+    <path d="M116 88 L180 128 L116 168 Z" fill="url(#vp-grad-c1)"/>
+    
+    <!-- Sound Pulse Arc (Top Right) -->
+    <circle cx="188" cy="76" r="10" fill="#38BDF8"/>
+    <path d="M198 62 C208 72 208 86 198 96" stroke="#38BDF8" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>

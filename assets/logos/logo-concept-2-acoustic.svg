@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none">
+  <!-- Concept 2: The Acoustic Speech V (Speech bubble notch + layered energetic audio waves) -->
+  <defs>
+    <linearGradient id="vp-grad-c2" x1="40" y1="40" x2="216" y2="216" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0EA5E9"/>
+      <stop offset="50%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle Base -->
+  <rect x="16" y="16" width="224" height="224" rx="52" fill="#0F172A" stroke="#1E293B" stroke-width="4"/>
+
+  <!-- Iconic V-Speechform -->
+  <g transform="translate(0, 0)">
+    <!-- Main V-shaped Acoustic Contour -->
+    <path d="M60 76 
+             L94 76 
+             L128 156 
+             L162 76 
+             L196 76 
+             L144 188 
+             Q128 200 112 188 
+             Z" 
+          fill="url(#vp-grad-c2)"/>
+    
+    <!-- Central Audio Frequency Bars nested in the V notch -->
+    <rect x="110" y="80" width="8" height="40" rx="4" fill="#38BDF8"/>
+    <rect x="124" y="62" width="8" height="58" rx="4" fill="#F8FAFC"/>
+    <rect x="138" y="80" width="8" height="40" rx="4" fill="#38BDF8"/>
+
+    <!-- Dynamic Play Triangle Accent -->
+    <path d="M123 132 L137 142 L123 152 Z" fill="#0F172A"/>
+  </g>
+</svg>

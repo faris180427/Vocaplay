@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none">
+  <!-- Concept 4: The Minimalist Studio Mark (High-contrast 16px-grade geometric icon) -->
+  <defs>
+    <linearGradient id="vp-grad-c4" x1="48" y1="48" x2="208" y2="208" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#818CF8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Clean Obsidian Circular Surface -->
+  <circle cx="128" cy="128" r="112" fill="#0B1120" stroke="#1E293B" stroke-width="4"/>
+
+  <!-- Geometric Chevron V with inset Play Triangle -->
+  <!-- Outer V Chevron -->
+  <path d="M72 82 L106 82 L128 144 L150 82 L184 82 L138 186 Q128 194 118 186 Z" fill="url(#vp-grad-c4)"/>
+
+  <!-- Dynamic Play Triangle (Nested Centrally) -->
+  <path d="M118 102 L144 118 L118 134 Z" fill="#F8FAFC"/>
+  
+  <!-- Subtle North Star / Sound Node Accent -->
+  <circle cx="184" cy="74" r="7" fill="#38BDF8"/>
+</svg>

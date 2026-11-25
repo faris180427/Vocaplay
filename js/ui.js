@@ -11,7 +11,7 @@ function applyTheme(theme) {
   const isDark = theme === 'dark';
   document.body.classList.toggle('theme-dark', isDark);
   const btn = document.getElementById('btn-theme-toggle');
-  if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+  if (btn) btn.innerHTML = getAppIconSvg(isDark ? 'sun' : 'moon', 'w-4 h-4');
   localStorage.setItem('vocaplay_theme', theme);
 }
 
@@ -56,7 +56,7 @@ function switchAppTab(tabId) {
       : 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100/10 transition text-left';
   });
 
-  ['listening', 'speaking', 'vocab', 'toeic', 'ielts'].forEach(s => {
+  ['listening', 'speaking', 'vocab'].forEach(s => {
     const el = document.getElementById(`side-btn-${s}`);
     if (el) el.className = 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100/10 transition text-left';
   });
@@ -70,7 +70,7 @@ function switchAppTab(tabId) {
 
 function filterHubSection(section) {
   switchAppTab('learn');
-  ['all', 'vocab', 'listening', 'speaking', 'exam'].forEach(s => {
+  ['all', 'vocab', 'listening', 'speaking'].forEach(s => {
     const pill = document.getElementById(`hub-pill-${s}`);
     if (pill) {
       pill.className = s === section
@@ -111,16 +111,20 @@ function updateHeaderStats() {
   document.getElementById('user-level-badge').textContent = `Rank: ${rankTier}`;
   document.getElementById('user-xp-bar').style.width = `${levelPct}%`;
 
-  const avatar = currentUser.avatar || '👤';
   const nameText = currentUser.isGuest ? 'Masuk' : currentUser.name;
-  document.getElementById('header-account-avatar').textContent = avatar;
+  const headAvatar = document.getElementById('header-account-avatar');
+  if (headAvatar) headAvatar.innerHTML = getAvatarMarkup(currentUser.avatar, currentUser.name, 'w-6 h-6 rounded-lg text-[10px]');
   document.getElementById('header-account-name').textContent = nameText;
+
   const sideAvatar = document.getElementById('sidebar-account-avatar');
   const sideLabel = document.getElementById('sidebar-account-label');
-  if (sideAvatar) sideAvatar.textContent = avatar;
+  if (sideAvatar) sideAvatar.innerHTML = getAvatarMarkup(currentUser.avatar, currentUser.name, 'w-7 h-7 rounded-xl text-xs');
   if (sideLabel) sideLabel.textContent = currentUser.isGuest ? 'MASUK / DAFTAR' : `${currentUser.name} (${xp} XP)`;
 
-  document.getElementById('banner-streak-text').textContent = `🔥 ${currentUser.streak || 0} Days Streak`;
+  const streakBanner = document.getElementById('banner-streak-text');
+  if (streakBanner) {
+    streakBanner.innerHTML = `<span class="inline-flex items-center gap-1">${getAppIconSvg('flame', 'w-3.5 h-3.5 text-amber-400')} <span>${currentUser.streak || 0} Days Streak</span></span>`;
+  }
   document.getElementById('banner-user-greeting').textContent = currentUser.isGuest ? 'Guest Mode (Simpan via Masuk)' : `Hi, ${currentUser.name}`;
 
   const curScore = document.getElementById('gameplay-current-score');
@@ -138,8 +142,43 @@ function updateHeaderStats() {
   }
 }
 
+function updateDailyRecommendationCard() {
+  const tagEl = document.getElementById('daily-rec-tag');
+  const titleEl = document.getElementById('daily-rec-title');
+  const descEl = document.getElementById('daily-rec-desc');
+  const btnEl = document.getElementById('daily-rec-btn');
+  if (!tagEl || !titleEl || !descEl || !btnEl) return;
+
+  const weakCount = currentUser && Array.isArray(currentUser.weakWords) ? currentUser.weakWords.length : 0;
+  if (weakCount > 0) {
+    tagEl.textContent = 'Prioritas Memory Vault (SRS)';
+    titleEl.textContent = `Latih Ulang ${weakCount} Kata Sulit`;
+    descEl.textContent = 'Jawab benar 3 kali bertahap agar kata benar-benar melekat di ingatan.';
+    btnEl.textContent = 'Latih Kata Sulit →';
+    btnEl.onclick = () => practiceWeakWords();
+    return;
+  }
+
+  const dailyModes = [
+    { mode: 'fast-vocab', title: 'Fast Vocab — Pemanasan Cepat', desc: 'Latih refleks pengenalan kata dan pelafalan dalam 8 ronde singkat.' },
+    { mode: 'word-speller', title: 'Word Speller — Uji Ejaan Tepat', desc: 'Susun ejaan kosakata bahasa Inggris berdasarkan fonetik IPA.' },
+    { mode: 'listening-dictation', title: 'Acoustic Dictation — Fokus Mendengar', desc: 'Dengarkan pelafalan natural lalu tuliskan ejaan yang akurat.' },
+    { mode: 'sentence-builder', title: 'Sentence Builder — Tata Bahasa', desc: 'Rangkai frasa acak menjadi kalimat bahasa Inggris yang tepat.' },
+    { mode: 'word-shooter', title: 'Penembak Kata — Latihan Mengetik', desc: 'Ketik kata bahasa Inggris yang jatuh untuk melatih kecepatan ingat.' }
+  ];
+  const dayIdx = new Date().getDate() % dailyModes.length;
+  const pick = dailyModes[dayIdx];
+  tagEl.textContent = 'Rekomendasi Hari Ini';
+  titleEl.textContent = pick.title;
+  descEl.textContent = pick.desc;
+  btnEl.textContent = 'Mulai Sekarang →';
+  btnEl.onclick = () => startGame(pick.mode);
+}
+
 function refreshAllUI() {
   updateHeaderStats();
+  updateDailyRecommendationCard();
+  if (typeof updateSpeechControlsUI === 'function') updateSpeechControlsUI();
   renderProfile();
   renderQuests();
   renderLeaderboard();
@@ -220,28 +259,28 @@ function renderNotebookList(items) {
     const isLearned = masteredSet.has(item.id);
     const isWeak = weakSet.has(item.id);
     const statusBadge = isWeak
-      ? `<span class="text-[10px] font-bold text-rose-400 bg-rose-500/15 border border-rose-400/30 px-1.5 py-0.5 rounded">⚠️ Perlu Latihan</span>`
+      ? `<span class="text-[10px] font-bold text-rose-400 bg-rose-500/15 border border-rose-400/30 px-1.5 py-0.5 rounded">Perlu Latihan</span>`
       : (isLearned
-        ? `<span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-400/30 px-1.5 py-0.5 rounded">✓ Dipelajari</span>`
+        ? `<span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-400/30 px-1.5 py-0.5 rounded">Dipelajari</span>`
         : `<span class="text-[10px] font-bold text-slate-400 bg-slate-500/15 border border-slate-400/20 px-1.5 py-0.5 rounded">Belum</span>`);
 
     const row = document.createElement('div');
-    row.className = 'py-3 flex items-start justify-between hover:bg-slate-50 px-2 rounded-xl transition gap-3';
+    row.className = 'py-3 flex items-start justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 px-2 rounded-xl transition gap-3';
     row.innerHTML = `
       <div class="flex items-start gap-3">
         <div class="w-14 h-14 rounded-xl overflow-hidden lexical-img-frame flex-shrink-0 border border-slate-200">${renderWordImgTag(item, 'w-full h-full object-cover', true)}</div>
         <div>
           <div class="flex items-center flex-wrap gap-1.5">
-            <span class="font-bold text-slate-900 text-sm">${item.word}</span>
-            <span class="code-font text-[10px] font-bold text-blue-700 bg-blue-50 px-1 rounded border border-blue-200">${item.cefr}</span>
+            <span class="font-bold text-slate-900 dark:text-slate-100 text-sm">${item.word}</span>
+            <span class="code-font text-[10px] font-bold text-sky-400 bg-sky-500/15 px-1 rounded border border-sky-400/30">${item.cefr}</span>
             ${statusBadge}
             <span class="code-font text-xs text-slate-500">${item.phonetic}</span>
           </div>
-          <p class="text-xs text-slate-600 mt-0.5">${item.definition}</p>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">${item.definition}</p>
           <span class="text-[11px] text-slate-400 font-medium">${item.meaning} • ${item.category}</span>
         </div>
       </div>
-      <button onclick="speakText('${item.word.replace(/'/g, "\\'")}')" class="tactile-btn p-1.5 rounded-lg border border-slate-200 hover:bg-white text-slate-600 text-xs flex-shrink-0">🔊</button>
+      <button onclick="speakText('${item.word.replace(/'/g, "\\'")}')" class="tactile-btn p-1.5 rounded-lg border border-slate-200 hover:bg-white text-slate-600 dark:text-slate-300 text-xs flex-shrink-0" title="Dengarkan">${getAppIconSvg('volume', 'w-3.5 h-3.5')}</button>
     `;
     list.appendChild(row);
   });
@@ -333,7 +372,7 @@ function loadNextVoiceLabWord() {
 
 function startSpeechRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { showToast('Speech Recognition not supported in this browser.', '⚠️'); return; }
+  if (!SR) { showToast('Speech Recognition not supported in this browser.', '!'); return; }
   playSfx('click');
   recognition = new SR();
   recognition.lang = 'en-US';
@@ -342,19 +381,19 @@ function startSpeechRecognition() {
   const statusText = document.getElementById('voicelab-status-text');
   const badge = document.getElementById('voicelab-result-badge');
   statusText.textContent = 'Listening... Articulate word.';
-  micBtn.classList.add('ring-2', 'ring-blue-600');
+  micBtn.classList.add('ring-2', 'ring-sky-500');
   drawWaveform(true);
   recognition.start();
 
   recognition.onresult = (event) => {
     drawWaveform(false);
-    micBtn.classList.remove('ring-2', 'ring-blue-600');
+    micBtn.classList.remove('ring-2', 'ring-sky-500');
     const spoken = event.results[0][0].transcript.toLowerCase().trim();
     const target = voiceLabCurrentItem.word.toLowerCase();
     if (spoken.includes(target)) {
       playSfx('correct');
       statusText.textContent = `Acoustic match: "${spoken}"`;
-      badge.innerHTML = `<span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-800 text-xs font-mono font-bold rounded border border-emerald-200">✓ Calibrated (+30 XP)</span>`;
+      badge.innerHTML = `<span class="px-2.5 py-0.5 bg-emerald-500/15 text-emerald-400 text-xs font-mono font-bold rounded border border-emerald-400/30">✓ Calibrated (+30 XP)</span>`;
       if (currentUser) {
         currentUser.xp += 30; currentUser.weeklyXP += 30; currentUser.monthlyXP += 30; currentUser.coins += 5;
         saveCurrentAccountState();
@@ -365,11 +404,11 @@ function startSpeechRecognition() {
     } else {
       playSfx('wrong');
       statusText.textContent = `Transcribed: "${spoken}"`;
-      badge.innerHTML = `<span class="px-2.5 py-0.5 bg-rose-50 text-rose-800 text-xs font-mono font-bold rounded border border-rose-200">Expected: "${target}"</span>`;
+      badge.innerHTML = `<span class="px-2.5 py-0.5 bg-rose-500/15 text-rose-400 text-xs font-mono font-bold rounded border border-rose-400/30">Expected: "${target}"</span>`;
     }
   };
-  recognition.onerror = () => { drawWaveform(false); micBtn.classList.remove('ring-2', 'ring-blue-600'); statusText.textContent = 'Microphone error.'; };
-  recognition.onend = () => { drawWaveform(false); micBtn.classList.remove('ring-2', 'ring-blue-600'); };
+  recognition.onerror = () => { drawWaveform(false); micBtn.classList.remove('ring-2', 'ring-sky-500'); statusText.textContent = 'Microphone error.'; };
+  recognition.onend = () => { drawWaveform(false); micBtn.classList.remove('ring-2', 'ring-sky-500'); };
 }
 
 /* ---------- CUSTOM WORD MODAL ---------- */
@@ -380,13 +419,13 @@ function handleSaveCustomWord(e) {
   e.preventDefault();
   const word = document.getElementById('cust-word').value.trim().toLowerCase();
   const cefr = document.getElementById('cust-cefr').value;
-  const emoji = document.getElementById('cust-emoji').value.trim() || '📝';
+  const tag = (document.getElementById('cust-tag') ? document.getElementById('cust-tag').value.trim() : '') || 'Vocabulary';
   const meaning = document.getElementById('cust-meaning').value.trim();
   const def = document.getElementById('cust-def').value.trim();
   const rawSentence = document.getElementById('cust-sentence').value.trim();
 
   const newEntry = {
-    id: `custom_${Date.now()}`, word, cefr, category: 'Custom', emoji, image: '',
+    id: `custom_${Date.now()}`, word, cefr, category: tag, emoji: '', image: '',
     phonetic: `/${word}/`, meaning, definition: def, distractors: ['e', 'o', 'k', 's'],
     synonym: word, antonym: 'opposite', sentence: rawSentence.split(' '), sentenceIndo: meaning
   };
@@ -400,102 +439,44 @@ function handleSaveCustomWord(e) {
   setCEFRLevel(cefr, true);
   unlockBadge('custom_creator');
   playSfx('fanfare');
-  showToast(`Custom word "${word}" saved to your account!`, emoji);
+  showToast(`Custom word "${word}" saved to your account!`, '✓');
   e.target.reset();
 }
 
-/* ---------- CLOUD DB SETUP MODAL ---------- */
+/* ---------- CLOUD STATUS & KEYBOARD SHORTCUTS ---------- */
 function refreshCloudBadges() {
   if (typeof updateCloudStatusPill === 'function') updateCloudStatusPill('auto');
-  const sideBadge = document.getElementById('sidebar-cloud-badge');
-  if (sideBadge && typeof isCloudEnabled === 'function') {
-    sideBadge.textContent = isCloudEnabled() ? 'Online' : 'Setup';
-    sideBadge.className = isCloudEnabled()
-      ? 'text-[10px] font-mono font-bold text-emerald-400'
-      : 'text-[10px] font-mono text-slate-400';
-  }
 }
 
-function openCloudSetupModal() {
-  playSfx('click');
-  const cfg = typeof getCloudConfig === 'function' ? getCloudConfig() : null;
-  const isConnected = typeof isCloudEnabled === 'function' && isCloudEnabled();
-  const statusEl = document.getElementById('cloud-setup-status');
-  const urlInput = document.getElementById('cloud-url-input');
-  const keyInput = document.getElementById('cloud-key-input');
-
-  if (cfg) {
-    if (urlInput) urlInput.value = cfg.url;
-    if (keyInput) keyInput.value = cfg.anonKey;
-  }
-
-  if (isConnected && statusEl) {
-    statusEl.className = 'text-xs font-semibold text-emerald-400';
-    statusEl.textContent = `✓ Terhubung ke Supabase: ${cfg ? cfg.url.replace('https://', '').split('.')[0] : 'vocaplay'}.supabase.co`;
-    statusEl.classList.remove('hidden');
-  } else if (statusEl) {
-    statusEl.classList.add('hidden');
-  }
-
-  document.getElementById('modal-cloud-db').classList.remove('hidden');
-}
-
-function closeCloudSetupModal() {
-  document.getElementById('modal-cloud-db').classList.add('hidden');
-}
-
-async function handleSaveCloudConfig(e) {
-  e.preventDefault();
-  const url = document.getElementById('cloud-url-input').value.trim();
-  const key = document.getElementById('cloud-key-input').value.trim();
-  const statusEl = document.getElementById('cloud-setup-status');
-  const btn = document.getElementById('btn-cloud-connect');
-
-  btn.disabled = true;
-  btn.textContent = 'Menghubungkan...';
-  statusEl.classList.add('hidden');
-
-  try {
-    const ok = await testCloudConnection(url, key);
-    if (ok) {
-      saveCloudConfig(url, key);
-      refreshCloudBadges();
-      statusEl.className = 'text-xs font-semibold text-emerald-400';
-      statusEl.textContent = '✓ Terhubung ke Supabase PostgreSQL!';
-      statusEl.classList.remove('hidden');
-      if (currentUser && !currentUser.isGuest) {
-        await pushCloudProfileNow(currentUser);
+function closeAllOpenModals() {
+  ['modal-deck-picker', 'modal-notebook', 'modal-voicelab', 'modal-achievements', 'modal-custom-word', 'modal-auth', 'modal-edit-profile'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.classList.contains('hidden')) {
+      el.classList.add('hidden');
+      if (id === 'modal-voicelab') {
+        if (recognition) recognition.stop();
+        cancelAnimationFrame(waveAnimId);
       }
-      renderLeaderboard();
-      playSfx('fanfare');
-      showToast('Database Online terhubung!', '☁️');
-      setTimeout(closeCloudSetupModal, 1100);
+      if (id === 'modal-auth' && typeof resetPasswordFieldsVisibility === 'function') {
+        resetPasswordFieldsVisibility();
+      }
     }
-  } catch (err) {
-    statusEl.className = 'text-xs font-semibold text-rose-400';
-    statusEl.textContent = `Gagal terhubung: ${err.message}.`;
-    statusEl.classList.remove('hidden');
-    playSfx('wrong');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Test & Hubungkan Cloud DB ✓';
-  }
+  });
 }
 
-function disconnectCloudConfig() {
-  playSfx('click');
-  saveCloudConfig('', '');
-  refreshCloudBadges();
-  closeCloudSetupModal();
-  renderLeaderboard();
-  showToast('Beralih ke penyimpanan lokal.', '📱');
-}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeAllOpenModals();
+});
 
 /* ---------- APP BOOTSTRAP ---------- */
 window.onload = function() {
   initTheme();
   updateSfxToggleUI();
+  if (typeof updateSpeechControlsUI === 'function') updateSpeechControlsUI();
   loadSessionUser();
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
   setTimeout(() => {
     refreshCloudBadges();
     if (typeof isCloudEnabled === 'function' && isCloudEnabled()) {

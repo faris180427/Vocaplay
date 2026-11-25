@@ -10,7 +10,10 @@ function renderProfile() {
   const myRankStr = me ? `#${me.rank}` : '#—';
   const acc = currentUser.totalAnswered > 0 ? Math.round((currentUser.totalCorrect / currentUser.totalAnswered) * 100) : 100;
 
-  document.getElementById('profile-avatar').textContent = currentUser.avatar || '🎓';
+  const avatarEl = document.getElementById('profile-avatar');
+  if (avatarEl) {
+    avatarEl.innerHTML = getAvatarMarkup(currentUser.avatar, currentUser.name, 'w-20 h-20 rounded-3xl text-2xl');
+  }
   document.getElementById('profile-name').textContent = currentUser.name;
   document.getElementById('profile-username').textContent = currentUser.isGuest ? '@guest • Mode Tamu (belum login)' : `@${currentUser.username} • Akun Terdaftar`;
   document.getElementById('profile-joined').textContent = `Joined Vocaplay • ${currentUser.joinedDate}`;
@@ -90,9 +93,9 @@ function renderQuests() {
   }
 
   const missions = [
-    { id: 'm_gems', icon: '💎', bg: 'bg-cyan-100 text-cyan-700', bar: 'bg-cyan-500', title: 'Collect 15 Diamonds Today', cur: dm.diamondsToday, max: 15, rewardText: '+30 XP', rewardXP: 30, rewardCoins: 0 },
-    { id: 'm_xp', icon: '⚡', bg: 'bg-amber-100 text-amber-700', bar: 'bg-amber-500', title: 'Earn 50 XP Today', cur: dm.xpToday, max: 50, rewardText: '+15 💎', rewardXP: 0, rewardCoins: 15 },
-    { id: 'm_games', icon: '🎯', bg: 'bg-rose-100 text-rose-700', bar: 'bg-rose-500', title: 'Complete 2 Lessons Today', cur: dm.gamesToday, max: 2, rewardText: '+20 💎', rewardXP: 0, rewardCoins: 20 }
+    { id: 'm_gems', iconName: 'gem', bg: 'bg-cyan-500/15 text-cyan-400 border border-cyan-400/30', bar: 'bg-cyan-500', title: 'Collect 15 Diamonds Today', cur: dm.diamondsToday, max: 15, rewardText: '+30 XP', rewardXP: 30, rewardCoins: 0 },
+    { id: 'm_xp', iconName: 'zap', bg: 'bg-amber-500/15 text-amber-400 border border-amber-400/30', bar: 'bg-amber-500', title: 'Earn 50 XP Today', cur: dm.xpToday, max: 50, rewardText: '+15 Diamonds', rewardXP: 0, rewardCoins: 15 },
+    { id: 'm_games', iconName: 'target', bg: 'bg-rose-500/15 text-rose-400 border border-rose-400/30', bar: 'bg-rose-500', title: 'Complete 2 Lessons Today', cur: dm.gamesToday, max: 2, rewardText: '+20 Diamonds', rewardXP: 0, rewardCoins: 20 }
   ];
 
   const list = document.getElementById('quests-missions-list');
@@ -104,21 +107,21 @@ function renderQuests() {
     const isClaimed = dm.claimed.includes(m.id);
 
     const card = document.createElement('div');
-    card.className = 'flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100';
+    card.className = 'flex items-center gap-3.5 p-3 rounded-2xl app-surface border border-slate-200';
     card.innerHTML = `
-      <div class="w-10 h-10 rounded-xl ${m.bg} flex items-center justify-center text-lg flex-shrink-0">${m.icon}</div>
+      <div class="w-10 h-10 rounded-xl ${m.bg} flex items-center justify-center flex-shrink-0">${getAppIconSvg(m.iconName, 'w-5 h-5')}</div>
       <div class="flex-grow">
-        <div class="flex justify-between text-xs font-bold text-slate-800">
+        <div class="flex justify-between text-xs font-bold">
           <span>${m.title}</span>
-          <span class="font-mono text-slate-500">${Math.min(m.cur, m.max)} / ${m.max}</span>
+          <span class="font-mono text-slate-400">${Math.min(m.cur, m.max)} / ${m.max}</span>
         </div>
-        <div class="w-full bg-slate-200 h-2 rounded-full mt-1.5 overflow-hidden">
+        <div class="w-full bg-slate-700/30 h-1.5 rounded-full mt-2 overflow-hidden">
           <div class="${m.bar} h-full rounded-full transition-all duration-300" style="width: ${pct}%;"></div>
         </div>
       </div>
       <div class="flex-shrink-0">
         ${isClaimed
-          ? '<span class="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg">Claimed ✓</span>'
+          ? '<span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-400/30 px-2 py-1 rounded-lg">Claimed ✓</span>'
           : (isComplete
             ? `<button onclick="claimDailyMission('${m.id}', ${m.rewardXP}, ${m.rewardCoins})" class="tactile-btn text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1.5 rounded-xl">Claim ${m.rewardText}</button>`
             : `<span class="text-[10px] font-mono text-slate-400">${m.rewardText}</span>`)
@@ -142,7 +145,7 @@ function claimDailyMission(id, xpBonus, coinsBonus) {
   playSfx('fanfare');
   triggerConfetti();
   refreshAllUI();
-  showToast(`Reward claimed! ${xpBonus ? '+' + xpBonus + ' XP' : '+' + coinsBonus + ' 💎'}`, '🎁');
+  showToast(`Reward claimed! ${xpBonus ? '+' + xpBonus + ' XP' : '+' + coinsBonus + ' Diamonds'}`, '✓');
 }
 
 function updateWeakWordsUI() {
@@ -152,18 +155,19 @@ function updateWeakWordsUI() {
   if (!listEl || !currentUser) return;
 
   const list = currentUser.weakWords || [];
-  countLabel.textContent = `${list.length} Missed`;
+  countLabel.textContent = `${list.length} Perlu Latihan`;
   if (list.length > 0) {
     listEl.innerHTML = '';
     list.forEach(w => {
+      const stage = Math.min(2, w.srsStage || 0);
       const chip = document.createElement('span');
-      chip.className = 'px-2 py-0.5 bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-mono rounded-lg';
-      chip.textContent = `${w.word} (${getShortMeaning(w, 26)})`;
+      chip.className = 'px-2.5 py-1 bg-rose-500/10 border border-rose-400/30 text-rose-400 text-[11px] font-mono rounded-lg inline-flex items-center gap-1.5';
+      chip.innerHTML = `<span class="font-bold">${w.word}</span><span class="opacity-75">(${getShortMeaning(w, 22)})</span><span class="px-1 py-0.2 rounded bg-rose-500/20 text-[9px] font-bold">${stage}/3</span>`;
       listEl.appendChild(chip);
     });
     if (btnPractice) btnPractice.classList.remove('hidden');
   } else {
-    listEl.innerHTML = `<span class="text-xs text-slate-400 italic">No missed words yet. Perfect retention!</span>`;
+    listEl.innerHTML = `<span class="text-xs text-slate-400 italic">Belum ada kata yang terlewat. Retensi sempurna!</span>`;
     if (btnPractice) btnPractice.classList.add('hidden');
   }
 }
@@ -172,7 +176,7 @@ function practiceWeakWords() {
   if (!currentUser || !currentUser.weakWords.length) return;
   playSfx('click');
   isPracticingWeakWords = true;
-  showToast(`Reinforcing ${currentUser.weakWords.length} weak words!`, '🧠');
+  showToast(`Reinforcing ${currentUser.weakWords.length} weak words!`, '✓');
   startGame('fast-vocab', true);
 }
 
@@ -194,7 +198,7 @@ function unlockBadge(badgeId) {
     currentUser.unlockedBadges.push(badgeId);
     saveCurrentAccountState();
     renderProfile();
-    showToast(`Milestone Unlocked: ${badge.title}`, '🏆');
+    showToast(`Milestone Unlocked: ${badge.title}`, '✓');
     playSfx('fanfare');
   }
 }
@@ -225,12 +229,14 @@ function renderAchievementsList() {
   ACHIEVEMENTS.forEach(b => {
     const isUnlocked = unlocked.includes(b.id);
     const item = document.createElement('div');
-    item.className = `p-3 rounded-xl border flex items-center gap-3 transition ${isUnlocked ? 'bg-amber-50/50 border-amber-200' : 'bg-slate-50 border-slate-200 opacity-60'}`;
+    item.className = `p-3 rounded-2xl border flex items-center gap-3 transition ${isUnlocked ? 'app-surface border-amber-400/50 bg-amber-500/10' : 'app-surface border-slate-200/50 opacity-60'}`;
     item.innerHTML = `
-      <div class="w-10 h-10 rounded-lg ${isUnlocked ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-slate-200 text-slate-400'} flex items-center justify-center text-lg flex-shrink-0">${b.icon}</div>
+      <div class="w-10 h-10 rounded-xl ${isUnlocked ? 'bg-amber-500/20 text-amber-400 border border-amber-400/30' : 'bg-slate-700/30 text-slate-400 border border-slate-600/30'} flex items-center justify-center flex-shrink-0">
+        ${getAppIconSvg(b.icon, 'w-5 h-5')}
+      </div>
       <div>
-        <h4 class="text-xs font-bold text-slate-900">${b.title} ${isUnlocked ? '✓' : ''}</h4>
-        <p class="text-[11px] text-slate-500 mt-0.5">${b.desc}</p>
+        <h4 class="text-xs font-bold ${isUnlocked ? 'text-amber-300' : 'text-slate-300'}">${b.title} ${isUnlocked ? '✓' : ''}</h4>
+        <p class="text-[11px] text-slate-400 mt-0.5">${b.desc}</p>
       </div>
     `;
     list.appendChild(item);
