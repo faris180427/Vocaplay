@@ -15,56 +15,64 @@ body {
 ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.35); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.55); }
 
-/* Parroto-inspired Dark Navy Theme */
+/* Studio Obsidian Dark Theme (Tailored UI/UX Pro Max) */
 body.theme-dark {
-  background-color: #0B1120;
-  color: #F1F5F9;
+  background-color: #080C14;
+  color: #F8FAFC;
 }
 body.theme-dark .app-surface {
-  background-color: #131C31 !important;
-  border-color: #24324D !important;
-  color: #F1F5F9 !important;
+  background-color: #0F172A !important;
+  border-color: #1E293B !important;
+  color: #F8FAFC !important;
 }
 body.theme-dark .app-sidebar,
 body.theme-dark .app-header,
 body.theme-dark .app-bottomnav,
 body.theme-dark .app-footer {
-  background-color: #0F172A !important;
+  background-color: #0B1120 !important;
   border-color: #1E293B !important;
   color: #E2E8F0 !important;
 }
 body.theme-dark .app-subsurface {
-  background-color: #0E1629 !important;
-  border-color: #24324D !important;
+  background-color: #080E1A !important;
+  border-color: #1E293B !important;
 }
 body.theme-dark .app-input {
-  background-color: #0B1120 !important;
-  border-color: #2A3956 !important;
+  background-color: #080C14 !important;
+  border-color: #1E293B !important;
   color: #F8FAFC !important;
 }
+body.theme-dark .app-input:-webkit-autofill,
+body.theme-dark .app-input:-webkit-autofill:hover,
+body.theme-dark .app-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #080C14 inset !important;
+  -webkit-text-fill-color: #F8FAFC !important;
+  caret-color: #F8FAFC !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
 body.theme-dark .text-slate-900,
-body.theme-dark .text-slate-800 { color: #F1F5F9 !important; }
-body.theme-dark .text-slate-700 { color: #CBD5E1 !important; }
+body.theme-dark .text-slate-800 { color: #F8FAFC !important; }
+body.theme-dark .text-slate-700 { color: #E2E8F0 !important; }
 body.theme-dark .text-slate-600,
 body.theme-dark .text-slate-500 { color: #94A3B8 !important; }
-body.theme-dark .bg-white { background-color: #131C31 !important; }
-body.theme-dark .bg-slate-50 { background-color: #0E1629 !important; }
-body.theme-dark .bg-slate-100 { background-color: #1A2540 !important; }
-body.theme-dark .bg-slate-200 { background-color: #24324D !important; }
+body.theme-dark .bg-white { background-color: #0F172A !important; }
+body.theme-dark .bg-slate-50 { background-color: #0B1120 !important; }
+body.theme-dark .bg-slate-100 { background-color: #111C33 !important; }
+body.theme-dark .bg-slate-200 { background-color: #1E293B !important; }
 body.theme-dark .border-slate-200,
 body.theme-dark .border-slate-100,
-body.theme-dark .border-slate-300 { border-color: #24324D !important; }
+body.theme-dark .border-slate-300 { border-color: #1E293B !important; }
 
 .editorial-serif { font-family: 'Newsreader', Georgia, serif; }
 .code-font { font-family: 'JetBrains Mono', monospace; }
 
 .tactile-btn {
-  transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  transition: transform 0.1s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 .tactile-btn:hover { transform: translateY(-1px); }
 .tactile-btn:active { transform: translateY(1px) scale(0.985); box-shadow: none !important; }
-.focus-ring:focus-visible { outline: 2px solid #6366F1; outline-offset: 2px; }
+.focus-ring:focus-visible { outline: 2px solid #38BDF8; outline-offset: 2px; }
 
 #confetti-canvas {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -72,36 +80,36 @@ body.theme-dark .border-slate-300 { border-color: #24324D !important; }
 }
 
 @keyframes fadeSlideIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.animate-fade-in { animation: fadeSlideIn 0.24s ease-out both; }
+.animate-fade-in { animation: fadeSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 @keyframes audioPulseSubtle {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.28); }
-  50% { transform: scale(1.03); box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.25); }
+  50% { transform: scale(1.02); box-shadow: 0 0 0 8px rgba(56, 189, 248, 0); }
 }
 .pulse-audio { animation: audioPulseSubtle 2s infinite ease-in-out; }
 
 @keyframes tactileShake {
   0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-5px); }
-  40%, 80% { transform: translateX(5px); }
+  25%, 75% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
 }
-.shake-anim { animation: tactileShake 0.35s ease-in-out; }
+.shake-anim { animation: tactileShake 0.3s ease-in-out; }
 
 @keyframes popSuccess {
   0%   { transform: scale(0.96); }
-  50%  { transform: scale(1.04); }
+  50%  { transform: scale(1.03); }
   100% { transform: scale(1); }
 }
-.pop-success { animation: popSuccess 0.28s ease-out; }
+.pop-success { animation: popSuccess 0.22s ease-out; }
 
-@keyframes mascotBounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+@keyframes subtlePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
 }
-.mascot-bounce { animation: mascotBounce 2.5s infinite ease-in-out; }
+.subtle-pulse { animation: subtlePulse 2s infinite ease-in-out; }
 
 @keyframes balloonFall {
   0%   { transform: translateY(-80px) rotate(-3deg); opacity: 0; }

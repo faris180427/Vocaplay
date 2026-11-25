@@ -14,13 +14,13 @@ function setActiveDeck(deckId, silent = false) {
   }
   const iconEl = document.getElementById('active-deck-icon');
   const titleEl = document.getElementById('active-deck-title');
-  if (iconEl) iconEl.textContent = deck.icon;
+  if (iconEl) iconEl.innerHTML = getAppIconSvg(deck.icon, 'w-6 h-6');
   if (titleEl) titleEl.textContent = deck.title;
 
   currentCategory = 'All';
   initCategoryPills();
   updateAvailableCorpusCount();
-  if (!silent) showToast(`Dek aktif: ${deck.title}`, deck.icon);
+  if (!silent) showToast(`Dek aktif: ${deck.title}`, '✓');
 }
 
 function setCEFRLevel(levelKey, silent = false) {
@@ -34,7 +34,7 @@ function renderDecksGrid(containerId, onSelectDeck) {
   grid.innerHTML = '';
   const weakList = currentUser ? currentUser.weakWords : [];
   const allDecks = weakList.length
-    ? [...VOCAB_DECKS, { id: 'weak_vault', title: 'Memory Vault (Kata Lemah)', desc: 'Latih ulang kata yang pernah salah', color: 'from-rose-500 to-red-600', icon: '🧠', tag: 'Review', cefr: 'MIX' }]
+    ? [...VOCAB_DECKS, { id: 'weak_vault', title: 'Memory Vault (Kata Lemah)', desc: 'Latih ulang kata yang pernah salah', color: 'from-rose-500 to-red-600', icon: 'zap', tag: 'Review', cefr: 'MIX' }]
     : VOCAB_DECKS;
 
   allDecks.forEach(deck => {
@@ -45,7 +45,7 @@ function renderDecksGrid(containerId, onSelectDeck) {
     card.className = `tactile-btn app-surface text-left rounded-2xl p-4 border transition flex items-start gap-3.5 ${isActive ? 'border-sky-500 ring-2 ring-sky-500/30' : 'border-slate-200 hover:border-sky-400/60'}`;
     card.innerHTML = `
       <div class="w-12 h-14 rounded-xl bg-gradient-to-br ${deck.color} text-white flex flex-col items-center justify-center shadow-sm flex-shrink-0">
-        <span class="text-xl">${deck.icon}</span>
+        ${getAppIconSvg(deck.icon, 'w-6 h-6')}
       </div>
       <div class="min-w-0 flex-1">
         <div class="flex items-center justify-between gap-1.5">

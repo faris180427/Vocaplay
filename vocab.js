@@ -869,18 +869,18 @@ function renderWordImgTag(item, extraClass = 'w-full h-full object-cover rounded
 }
 
 const VOCAB_DECKS = [
-  { id: 'common_1000', title: '1000 Common English Words', desc: 'Kosakata inti paling sering dipakai sehari-hari', color: 'from-cyan-500 to-teal-500', icon: '📘', tag: 'Core', cefr: 'A1-A2' },
-  { id: 'conversational', title: 'Conversational English', desc: 'Kata kerja, ekspresi, dan percakapan harian', color: 'from-amber-400 to-orange-500', icon: '💬', tag: 'Speaking', cefr: 'A1-B1' },
-  { id: 'ox_a1', title: '3000 Oxford Vocabulary A1', desc: 'Level pemula (Foundational) standar Oxford', color: 'from-sky-500 to-blue-600', icon: '📗', tag: 'CEFR A1', cefr: 'A1' },
-  { id: 'ox_a2', title: '3000 Oxford Vocabulary A2', desc: 'Level dasar (Elementary) standar Oxford', color: 'from-emerald-500 to-teal-600', icon: '📒', tag: 'CEFR A2', cefr: 'A2' },
-  { id: 'ox_b1', title: '3000 Oxford Vocabulary B1', desc: 'Level menengah (Intermediate) standar Oxford', color: 'from-teal-500 to-indigo-600', icon: '📕', tag: 'CEFR B1', cefr: 'B1' },
-  { id: 'ox_b2', title: '5000 Oxford Vocabulary B2', desc: 'Level menengah atas (Upper-Intermediate)', color: 'from-fuchsia-500 to-purple-600', icon: '📙', tag: 'CEFR B2', cefr: 'B2' },
-  { id: 'ox_c1', title: '5000 Oxford Vocabulary C1', desc: 'Level mahir (Advanced) & akademik', color: 'from-violet-500 to-indigo-700', icon: '🎓', tag: 'CEFR C1', cefr: 'C1' },
-  { id: 'toeic', title: 'Essential Words for TOEIC', desc: 'Bisnis, perkantoran, keuangan & logistik', color: 'from-blue-500 to-cyan-600', icon: '💼', tag: 'TOEIC', cefr: 'B1-B2' },
-  { id: 'ielts', title: 'IELTS Academic Mastery', desc: 'Kosakata akademik, riset & esai IELTS', color: 'from-rose-500 to-pink-600', icon: '🏛️', tag: 'IELTS', cefr: 'B2-C1' },
-  { id: 'tech_science', title: 'Tech, Science & Future', desc: 'Istilah teknologi, komputer, dan sains', color: 'from-indigo-500 to-blue-700', icon: '⚙️', tag: 'STEM', cefr: 'B1-C1' },
-  { id: 'daily_nature', title: 'Travel, Food & Nature', desc: 'Perjalanan, kuliner, hewan, dan alam', color: 'from-lime-500 to-emerald-600', icon: '🌍', tag: 'Lifestyle', cefr: 'A1-B2' },
-  { id: 'all', title: 'All 4,080+ Words (Nonstop)', desc: 'Campuran seluruh korpus tanpa batas level', color: 'from-slate-700 to-indigo-800', icon: '♾️', tag: 'Full Mix', cefr: 'ALL' }
+  { id: 'common_1000', title: '1000 Common English Words', desc: 'Kosakata inti paling sering dipakai sehari-hari', color: 'from-cyan-500 to-blue-600', icon: 'book', tag: 'Core', cefr: 'A1-A2' },
+  { id: 'conversational', title: 'Conversational English', desc: 'Kata kerja, ekspresi, dan percakapan harian', color: 'from-sky-500 to-indigo-600', icon: 'mic', tag: 'Speaking', cefr: 'A1-B1' },
+  { id: 'ox_a1', title: '3000 Oxford Vocabulary A1', desc: 'Level pemula (Foundational) standar Oxford', color: 'from-sky-600 to-blue-700', icon: 'vocab', tag: 'CEFR A1', cefr: 'A1' },
+  { id: 'ox_a2', title: '3000 Oxford Vocabulary A2', desc: 'Level dasar (Elementary) standar Oxford', color: 'from-emerald-600 to-teal-700', icon: 'vocab', tag: 'CEFR A2', cefr: 'A2' },
+  { id: 'ox_b1', title: '3000 Oxford Vocabulary B1', desc: 'Level menengah (Intermediate) standar Oxford', color: 'from-teal-600 to-indigo-700', icon: 'vocab', tag: 'CEFR B1', cefr: 'B1' },
+  { id: 'ox_b2', title: '5000 Oxford Vocabulary B2', desc: 'Level menengah atas (Upper-Intermediate)', color: 'from-indigo-600 to-purple-700', icon: 'vocab', tag: 'CEFR B2', cefr: 'B2' },
+  { id: 'ox_c1', title: '5000 Oxford Vocabulary C1', desc: 'Level mahir (Advanced) & akademik', color: 'from-violet-600 to-purple-800', icon: 'crown', tag: 'CEFR C1', cefr: 'C1' },
+  { id: 'business_career', title: 'Business & Professional English', desc: 'Komunikasi kantor, presentasi, dan karir', color: 'from-slate-700 to-slate-900', icon: 'target', tag: 'Career', cefr: 'B1-B2' },
+  { id: 'academic_research', title: 'Academic & Formal English', desc: 'Kosakata formal, riset, dan analisis esai', color: 'from-purple-700 to-indigo-900', icon: 'landmark', tag: 'Academic', cefr: 'B2-C1' },
+  { id: 'tech_science', title: 'Tech, Science & Innovation', desc: 'Istilah teknologi, komputasi, dan sains', color: 'from-blue-600 to-indigo-800', icon: 'zap', tag: 'STEM', cefr: 'B1-C1' },
+  { id: 'daily_nature', title: 'Travel, Culture & Nature', desc: 'Perjalanan, budaya global, dan lingkungan', color: 'from-teal-600 to-emerald-800', icon: 'compass', tag: 'Global', cefr: 'A1-B2' },
+  { id: 'all', title: 'All 4,080+ Words (Nonstop)', desc: 'Campuran seluruh korpus tanpa batas level', color: 'from-indigo-700 to-slate-900', icon: 'sparkles', tag: 'Full Mix', cefr: 'ALL' }
 ];
 
 function getDeckVocab(deckId, allVocab, weakWords = []) {
@@ -894,12 +894,12 @@ function getDeckVocab(deckId, allVocab, weakWords = []) {
   if (deckId === 'ox_c1') return list.filter(w => w.cefr === 'C1');
   if (deckId === 'common_1000') return list.filter(w => w.cefr === 'A1' || w.cefr === 'A2').slice(0, 1000);
   if (deckId === 'conversational') return list.filter(w => ['A1', 'A2', 'B1'].includes(w.cefr) && ['Verbs', 'Expressions', 'Adjectives', 'Food', 'Travel'].includes(w.category));
-  if (deckId === 'toeic') {
+  if (deckId === 'business_career') {
     const kw = /company|office|market|business|price|cost|contract|manage|report|pay|bank|service|travel|schedule|meeting|staff|product|customer|trade|tax|budget|client|profit|hotel|flight|project|order|finance|industry/i;
     const matched = list.filter(w => kw.test(w.word) || kw.test(w.definition));
     return matched.length >= 200 ? matched : list.filter(w => w.cefr === 'B1' || w.cefr === 'B2').slice(0, 600);
   }
-  if (deckId === 'ielts') {
+  if (deckId === 'academic_research') {
     const matched = list.filter(w => (w.cefr === 'B2' || w.cefr === 'C1') && (w.category === 'Academic' || w.category === 'Adjectives' || w.category === 'Verbs' || w.category === 'Nouns'));
     return matched.slice(0, 900);
   }

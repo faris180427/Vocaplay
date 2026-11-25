@@ -15,15 +15,11 @@ function loadSessionUser() {
     } catch { loaded = null; }
   }
 
-  const firstVisit = !sessionUsername;
   if (!loaded) {
-    loaded = createFreshProfile({ username: 'guest', name: 'Guest Player', avatar: '👤', isGuest: true });
+    loaded = createFreshProfile({ username: 'guest', name: 'Guest Player', avatar: 'av-sky', isGuest: true });
+    localStorage.setItem(STORAGE_SESSION_KEY, 'guest');
   }
   applyUserToApp(loaded);
-
-  if (firstVisit) {
-    setTimeout(() => openAuthModal('login'), 250);
-  }
 }
 
 function applyUserToApp(userObj) {
@@ -37,30 +33,64 @@ function applyUserToApp(userObj) {
   refreshAllUI();
 }
 
-function renderAvatarPicker(containerId, hiddenInputId, selectedEmoji) {
+function renderAvatarPicker(containerId, hiddenInputId, selectedKey) {
   const box = document.getElementById(containerId);
   const hidden = document.getElementById(hiddenInputId);
   if (!box || !hidden) return;
-  hidden.value = selectedEmoji;
+  const currentKey = AVATAR_PALETTES[selectedKey] ? selectedKey : 'av-sky';
+  hidden.value = currentKey;
   box.innerHTML = '';
-  AVATAR_CHOICES.forEach(emoji => {
+  AVATAR_CHOICES.forEach(key => {
+    const p = AVATAR_PALETTES[key];
     const btn = document.createElement('button');
     btn.type = 'button';
-    const active = emoji === selectedEmoji;
-    btn.className = `w-9 h-9 rounded-xl border text-lg flex items-center justify-center transition ${active ? 'bg-indigo-100 border-indigo-600 ring-2 ring-indigo-300' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`;
-    btn.textContent = emoji;
+    const active = key === currentKey;
+    btn.className = `w-8 h-8 rounded-xl bg-gradient-to-tr ${p.bg} ${p.text} flex items-center justify-center transition-all ${active ? 'ring-2 ring-white scale-110 shadow-md' : 'opacity-80 hover:opacity-100 hover:scale-105'}`;
+    btn.innerHTML = active ? `<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>` : '';
     btn.onclick = () => {
       playSfx('click');
-      renderAvatarPicker(containerId, hiddenInputId, emoji);
+      renderAvatarPicker(containerId, hiddenInputId, key);
     };
     box.appendChild(btn);
   });
 }
 
+const SVG_EYE_OPEN = `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const SVG_EYE_OFF = `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>`;
+
+function togglePasswordVisibility(inputId, btnEl) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  if (btnEl) {
+    btnEl.innerHTML = showing ? SVG_EYE_OPEN : SVG_EYE_OFF;
+    btnEl.setAttribute('aria-label', showing ? 'Tampilkan password' : 'Sembunyikan password');
+    btnEl.setAttribute('title', showing ? 'Tampilkan password' : 'Sembunyikan password');
+  }
+}
+
+function resetPasswordFieldsVisibility() {
+  [
+    ['login-password', 'btn-toggle-login-pw'],
+    ['reg-password', 'btn-toggle-reg-pw']
+  ].forEach(([inpId, btnId]) => {
+    const inp = document.getElementById(inpId);
+    const btn = document.getElementById(btnId);
+    if (inp) inp.type = 'password';
+    if (btn) {
+      btn.innerHTML = SVG_EYE_OPEN;
+      btn.setAttribute('aria-label', 'Tampilkan password');
+      btn.setAttribute('title', 'Tampilkan password');
+    }
+  });
+}
+
 function openAuthModal(defaultTab = 'login') {
   playSfx('click');
+  resetPasswordFieldsVisibility();
   switchAuthTab(defaultTab);
-  renderAvatarPicker('reg-avatar-picker', 'reg-avatar-value', '🎓');
+  renderAvatarPicker('reg-avatar-picker', 'reg-avatar-value', 'av-sky');
   renderSavedAccountsList();
   document.getElementById('login-error-msg').classList.add('hidden');
   document.getElementById('register-error-msg').classList.add('hidden');
@@ -68,6 +98,7 @@ function openAuthModal(defaultTab = 'login') {
 }
 
 function closeAuthModal() {
+  resetPasswordFieldsVisibility();
   document.getElementById('modal-auth').classList.add('hidden');
 }
 
@@ -106,13 +137,13 @@ function renderSavedAccountsList() {
     row.className = `w-full flex items-center justify-between p-2 rounded-xl border text-left transition ${isCurrent ? 'bg-indigo-50 border-indigo-300' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`;
     row.innerHTML = `
       <div class="flex items-center gap-2.5">
-        <span class="text-lg">${acc.avatar || '🎓'}</span>
+        ${getAvatarMarkup(acc.avatar, acc.name, 'w-8 h-8 rounded-xl')}
         <div>
           <div class="text-xs font-bold text-slate-900">${acc.name} ${isCurrent ? '<span class="text-[10px] text-indigo-600">(Aktif)</span>' : ''}</div>
           <div class="text-[10px] text-slate-500 font-mono">@${acc.username} • ${acc.xp} XP</div>
         </div>
       </div>
-      <span class="text-[10px] font-bold text-indigo-600">Pilih →</span>
+      <span class="text-[10px] font-bold text-sky-400">Pilih →</span>
     `;
     row.onclick = () => {
       playSfx('click');
@@ -129,7 +160,7 @@ function renderSavedAccountsList() {
         passInp.value = '';
         passInp.focus();
       }
-      showToast(`Masukkan password untuk @${acc.username}`, '🔐');
+      showToast(`Masukkan password untuk @${acc.username}`, '*');
     };
     list.appendChild(row);
   });
@@ -167,7 +198,7 @@ async function handleLoginSubmit(e) {
         applyUserToApp(cloudAcc);
         closeAuthModal();
         playSfx('correct');
-        showToast(`Cloud Login berhasil! Halo, ${cloudAcc.name}`, cloudAcc.avatar || '☁️');
+        showToast(`Cloud Login berhasil! Halo, ${cloudAcc.name}`, '✓');
         return;
       } else if (res && res.error) {
         errBox.textContent = res.error;
@@ -201,7 +232,7 @@ async function handleLoginSubmit(e) {
   applyUserToApp(acc);
   closeAuthModal();
   playSfx('correct');
-  showToast(`Login berhasil! Halo, ${acc.name}`, acc.avatar || '🎉');
+  showToast(`Login berhasil! Halo, ${acc.name}`, '✓');
 }
 
 async function handleRegisterSubmit(e) {
@@ -210,7 +241,7 @@ async function handleRegisterSubmit(e) {
   const usernameRaw = document.getElementById('reg-username').value.trim();
   const username = usernameRaw.toLowerCase().replace(/[^a-z0-9_]/g, '');
   const password = document.getElementById('reg-password').value;
-  const avatar = document.getElementById('reg-avatar-value').value || '🎓';
+  const avatar = document.getElementById('reg-avatar-value').value || 'av-sky';
   const errBox = document.getElementById('register-error-msg');
   errBox.classList.add('hidden');
 
@@ -248,7 +279,7 @@ async function handleRegisterSubmit(e) {
         applyUserToApp(cloudAcc);
         closeAuthModal();
         playSfx('fanfare');
-        showToast(`Akun Cloud @${username} berhasil dibuat!`, '☁️');
+        showToast(`Akun Cloud @${username} berhasil dibuat!`, '✓');
         return;
       } else if (res && res.error) {
         errBox.textContent = res.error;
@@ -273,7 +304,7 @@ async function handleRegisterSubmit(e) {
   applyUserToApp(newUser);
   closeAuthModal();
   playSfx('fanfare');
-  showToast(`Akun @${username} berhasil dibuat!`, avatar);
+  showToast(`Akun @${username} berhasil dibuat!`, '✓');
 }
 
 function continueAsGuest() {
@@ -282,34 +313,34 @@ function continueAsGuest() {
   if (!currentUser || !currentUser.isGuest) {
     let guestData = null;
     try { guestData = JSON.parse(localStorage.getItem(STORAGE_GUEST_KEY) || 'null'); } catch {}
-    if (!guestData) guestData = createFreshProfile({ username: 'guest', name: 'Guest Player', avatar: '👤', isGuest: true });
+    if (!guestData) guestData = createFreshProfile({ username: 'guest', name: 'Guest Player', avatar: 'av-sky', isGuest: true });
     applyUserToApp(guestData);
   }
   closeAuthModal();
-  showToast('Bermain sebagai Tamu (tersimpan lokal)', '👤');
+  showToast('Bermain sebagai Tamu (tersimpan lokal)', '✓');
 }
 
 function logoutAccount() {
   playSfx('click');
   saveCurrentAccountState();
   localStorage.setItem(STORAGE_SESSION_KEY, 'guest');
-  const guestData = createFreshProfile({ username: 'guest', name: 'Guest Player', avatar: '👤', isGuest: true });
+  const guestData = createFreshProfile({ username: 'guest', name: 'Guest Player', avatar: 'av-sky', isGuest: true });
   applyUserToApp(guestData);
-  showToast('Berhasil keluar dari akun.', '🚪');
+  showToast('Berhasil keluar dari akun.', '✓');
   openAuthModal('login');
 }
 
 function openEditProfileModal() {
   if (!currentUser) return;
   if (currentUser.isGuest) {
-    showToast('Daftar/login akun dulu untuk mengedit profil permanen!', '🔐');
+    showToast('Daftar/login akun dulu untuk mengedit profil permanen!', '!');
     openAuthModal('register');
     return;
   }
   playSfx('click');
   document.getElementById('edit-prof-name').value = currentUser.name;
   document.getElementById('edit-prof-bio').value = currentUser.bio || '';
-  renderAvatarPicker('edit-avatar-picker', 'edit-avatar-value', currentUser.avatar || '🎓');
+  renderAvatarPicker('edit-avatar-picker', 'edit-avatar-value', currentUser.avatar || 'av-sky');
   document.getElementById('modal-edit-profile').classList.remove('hidden');
 }
 

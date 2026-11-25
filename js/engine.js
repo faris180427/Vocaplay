@@ -2,11 +2,33 @@
    VOCAPLAY — GAME SESSION ENGINE, SCORING & KEYBOARD SHORTCUTS
    ============================================================== */
 
+let mistakeBannerTimer = null;
+
+function hideMistakeReview() {
+  clearTimeout(mistakeBannerTimer);
+  const el = document.getElementById('mistake-review-banner');
+  if (el) el.classList.add('hidden');
+}
+
+function showMistakeReview(item) {
+  if (!item) return;
+  const el = document.getElementById('mistake-review-banner');
+  if (!el) return;
+  document.getElementById('mistake-review-word').textContent = item.word || '';
+  document.getElementById('mistake-review-phonetic').textContent = item.phonetic || '';
+  document.getElementById('mistake-review-meaning').textContent = item.meaning || item.definition || '';
+  const audioBtn = document.getElementById('mistake-review-audio');
+  if (audioBtn) audioBtn.onclick = () => speakText(item.word);
+  el.classList.remove('hidden');
+  clearTimeout(mistakeBannerTimer);
+  mistakeBannerTimer = setTimeout(hideMistakeReview, 3500);
+}
+
 function stopAllActiveGameTimers() {
   clearInterval(fastVocabTimerInterval);
   clearInterval(shooterInterval);
   clearInterval(shooterSpawnInterval);
-  clearInterval(examTimerInterval);
+  hideMistakeReview();
 }
 
 function updateRoundProgressUI() {
@@ -59,8 +81,20 @@ function addSuccessScore(points) {
     if (currentItem && !currentUser.masteredWords.includes(currentItem.id)) {
       currentUser.masteredWords.push(currentItem.id);
     }
-    if (isPracticingWeakWords && currentItem) {
-      currentUser.weakWords = currentUser.weakWords.filter(w => w.id !== currentItem.id);
+    // Spaced Repetition (SRS) bertahap: butuh 3x jawaban benar untuk lulus dari Memory Vault
+    if (currentItem && Array.isArray(currentUser.weakWords)) {
+      const idx = currentUser.weakWords.findIndex(w => w.id === currentItem.id);
+      if (idx !== -1) {
+        const entry = currentUser.weakWords[idx];
+        const nextStage = (entry.srsStage || 0) + 1;
+        if (nextStage >= 3) {
+          currentUser.weakWords.splice(idx, 1);
+          showToast(`"${currentItem.word}" lulus Memory Vault (3/3)!`, '✓');
+        } else {
+          entry.srsStage = nextStage;
+          entry.lastReviewed = getTodayISO();
+        }
+      }
     }
     saveCurrentAccountState();
   }
@@ -87,12 +121,21 @@ function handleMistake(item) {
 
   if (currentUser) {
     currentUser.totalAnswered++;
-    if (item && !currentUser.weakWords.some(w => w.id === item.id)) {
-      currentUser.weakWords.push(item);
+    if (item) {
+      const existing = currentUser.weakWords.find(w => w.id === item.id);
+      if (existing) {
+        existing.srsStage = 0; // Reset progress SRS jika salah lagi
+        existing.lastReviewed = getTodayISO();
+      } else {
+        currentUser.weakWords.push({ ...item, srsStage: 0, lastReviewed: getTodayISO() });
+      }
     }
     saveCurrentAccountState();
   }
-  if (item) reviewWordsList.add(item);
+  if (item) {
+    reviewWordsList.add(item);
+    showMistakeReview(item);
+  }
 
   updateHeaderStats();
   const streakBanner = document.getElementById('streak-banner');
@@ -102,12 +145,6 @@ function handleMistake(item) {
     clearInterval(fastVocabTimerInterval);
     setTimeout(endGameSession, 600);
   }
-}
-
-function startExamMode(examType) {
-  currentExamType = examType === 'ielts' ? 'ielts' : 'toeic';
-  setActiveDeck(currentExamType, true);
-  startGame('exam-quiz');
 }
 
 function startGame(mode, keepWeakFlag = false) {
@@ -151,8 +188,7 @@ function startGame(mode, keepWeakFlag = false) {
     'meaning-hunter': 'Meaning Hunter',
     'balloon-catcher': 'Balloon Catcher',
     'voice-duel': 'Voice Duel',
-    'word-shooter': 'Penembak Kata',
-    'exam-quiz': currentExamType === 'ielts' ? 'Ujian IELTS' : 'Ujian TOEIC'
+    'word-shooter': 'Penembak Kata'
   };
   document.getElementById('gameplay-mode-badge').textContent = modeNames[mode] || mode;
   document.getElementById('gameplay-level-badge').textContent = isPracticingWeakWords ? 'WEAK' : currentCEFR;
@@ -161,10 +197,14 @@ function startGame(mode, keepWeakFlag = false) {
     'subgame-fast-vocab', 'subgame-word-speller', 'subgame-sentence-builder',
     'subgame-memory-flip', 'subgame-word-scramble', 'subgame-odd-one-out',
     'subgame-listening-dictation', 'subgame-meaning-hunter', 'subgame-balloon-catcher',
-    'subgame-voice-duel', 'subgame-word-shooter', 'subgame-exam-quiz'
-  ].forEach(id => document.getElementById(id).classList.add('hidden'));
+    'subgame-voice-duel', 'subgame-word-shooter'
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
 
-  document.getElementById(`subgame-${mode}`).classList.remove('hidden');
+  const activeSub = document.getElementById(`subgame-${mode}`);
+  if (activeSub) activeSub.classList.remove('hidden');
 
   if (mode === 'fast-vocab') nextFastVocabRound();
   else if (mode === 'word-speller') nextWordSpellerRound();
@@ -177,7 +217,6 @@ function startGame(mode, keepWeakFlag = false) {
   else if (mode === 'balloon-catcher') nextBalloonCatcherRound();
   else if (mode === 'voice-duel') nextVoiceDuelRound();
   else if (mode === 'word-shooter') startWordShooterGame();
-  else if (mode === 'exam-quiz') nextExamQuizRound();
 }
 
 function endGameSession() {
@@ -210,7 +249,6 @@ function endGameSession() {
     if (isWin) {
       unlockBadge('lesson_done');
       if (currentMode === 'word-shooter') unlockBadge('shooter_ace');
-      if (currentMode === 'exam-quiz') unlockBadge('exam_pro');
     }
 
     currentUser.dailyMission.xpToday += bonusXP;
@@ -233,10 +271,12 @@ function endGameSession() {
   const ranked = getRankedEntries('weekly');
   const me = ranked.find(r => r.isMe);
 
-  document.getElementById('results-title').textContent = isWin ? 'Lesson completed!' : 'Session finished!';
+  document.getElementById('results-title').textContent = isWin ? 'Sesi Selesai!' : 'Latihan Berakhir';
   document.getElementById('results-subtitle').textContent = currentUser && !currentUser.isGuest
-    ? `Progress saved to @${currentUser.username}!`
-    : 'Saved locally. Login to keep your account progress!';
+    ? `Progres disimpan ke akun @${currentUser.username}`
+    : 'Progres tersimpan di perangkat ini.';
+  const guestCta = document.getElementById('results-guest-cta');
+  if (guestCta) guestCta.classList.toggle('hidden', !(currentUser && currentUser.isGuest));
   document.getElementById('results-diamonds-earned').textContent = `+${sessionDiamonds}`;
   document.getElementById('summary-final-score').textContent = `+${sessionXP} XP`;
   document.getElementById('summary-time-spent').textContent = `${mins}:${secs}`;

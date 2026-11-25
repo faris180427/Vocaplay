@@ -37,7 +37,7 @@ function getRankedEntries(period = leaderboardPeriod) {
       byUsername.set(acc.username.toLowerCase(), {
         username: acc.username,
         name: acc.name,
-        avatar: acc.avatar || '🎓',
+        avatar: acc.avatar || 'av-sky',
         cefr: acc.cefr || 'A1',
         xp: acc.xp || 0,
         weeklyXP: acc.weeklyXP || 0,
@@ -51,7 +51,7 @@ function getRankedEntries(period = leaderboardPeriod) {
     byUsername.set(currentUser.username.toLowerCase(), {
       username: currentUser.username,
       name: currentUser.name,
-      avatar: currentUser.avatar || '👤',
+      avatar: currentUser.avatar || 'av-sky',
       cefr: currentUser.cefr || 'A1',
       xp: currentUser.xp || 0,
       weeklyXP: currentUser.weeklyXP || 0,
@@ -88,7 +88,7 @@ function renderLeaderboard(skipCloudRefresh = false) {
 
   const bannerName = document.getElementById('lb-banner-name');
   const bannerSub = document.getElementById('lb-banner-sub');
-  const cloudTag = (typeof isCloudEnabled === 'function' && isCloudEnabled()) ? '☁️ Online' : '📱 Lokal';
+  const cloudTag = (typeof isCloudEnabled === 'function' && isCloudEnabled()) ? 'Online' : 'Lokal';
   if (bannerName && me) bannerName.textContent = `${me.name} • Peringkat #${me.rank} dari ${ranked.length} (${cloudTag})`;
   if (bannerSub && me) bannerSub.textContent = `${me.displayXP} XP (${leaderboardPeriod === 'weekly' ? 'Minggu Ini' : leaderboardPeriod === 'monthly' ? 'Bulan Ini' : 'Sepanjang Waktu'})`;
 
@@ -102,18 +102,18 @@ function renderLeaderboard(skipCloudRefresh = false) {
     const isFirst = entry.rank === 1;
     const col = document.createElement('div');
     col.className = 'flex flex-col items-center';
-    const ring = entry.isMe ? 'ring-4 ring-sky-400' : '';
+    const ring = entry.isMe ? 'ring-2 ring-sky-400' : '';
     const barColor = isFirst
-      ? 'bg-indigo-600 text-white h-28 w-20'
-      : (entry.rank === 2 ? 'bg-sky-500/20 text-sky-400 h-20 w-16 border border-sky-400/30' : 'bg-orange-500/20 text-orange-400 h-16 w-16 border border-orange-400/30');
+      ? 'bg-indigo-600 text-white h-24 w-20'
+      : (entry.rank === 2 ? 'bg-sky-500/20 text-sky-400 h-16 w-16 border border-sky-400/30' : 'bg-slate-700/40 text-slate-300 h-14 w-16 border border-slate-600/30');
     col.innerHTML = `
-      ${isFirst ? '<span class="text-xl mb-1 animate-bounce">👑</span>' : ''}
-      <div class="${isFirst ? 'w-16 h-16 text-3xl' : 'w-12 h-12 text-xl'} rounded-full app-subsurface border-2 ${isFirst ? 'border-amber-400' : 'border-slate-400/40'} ${ring} flex items-center justify-center shadow-sm">
-        ${entry.avatar}
+      ${isFirst ? `<div class="text-amber-400 mb-1">${getAppIconSvg('crown', 'w-5 h-5')}</div>` : ''}
+      <div class="${isFirst ? 'w-14 h-14' : 'w-11 h-11'} ${ring}">
+        ${getAvatarMarkup(entry.avatar, entry.name, isFirst ? 'w-14 h-14 rounded-2xl text-sm' : 'w-11 h-11 rounded-xl text-xs')}
       </div>
-      <span class="text-xs font-bold mt-1 max-w-[80px] truncate">${entry.isMe ? 'You' : entry.name}</span>
+      <span class="text-xs font-bold mt-1.5 max-w-[80px] truncate">${entry.isMe ? 'You' : entry.name}</span>
       <span class="code-font text-[10px] ${isFirst ? 'text-amber-400 font-extrabold' : 'text-sky-400 font-bold'}">${entry.displayXP} XP</span>
-      <div class="${barColor} rounded-t-2xl flex items-center justify-center text-2xl font-black mt-2 shadow-sm">${entry.rank}</div>
+      <div class="${barColor} rounded-t-2xl flex items-center justify-center text-xl font-black mt-2 shadow-sm font-mono">${entry.rank}</div>
     `;
     podium.appendChild(col);
   });
@@ -127,9 +127,9 @@ function renderLeaderboard(skipCloudRefresh = false) {
     row.innerHTML = `
       <div class="flex items-center gap-3">
         <span class="font-mono font-bold text-xs ${entry.isMe ? 'text-sky-400' : 'text-slate-400'} w-5">${entry.rank}</span>
-        <div class="w-8 h-8 rounded-full app-subsurface border border-slate-400/30 flex items-center justify-center text-sm shadow-xs">${entry.avatar}</div>
+        ${getAvatarMarkup(entry.avatar, entry.name, 'w-8 h-8 rounded-xl')}
         <div>
-          <span class="text-xs font-bold">${entry.name} ${entry.isMe ? '<span class="text-[10px] bg-sky-500 text-white px-1.5 py-0.5 rounded ml-1">YOU</span>' : ''}</span>
+          <span class="text-xs font-bold">${entry.name} ${entry.isMe ? '<span class="text-[10px] bg-sky-500 text-white px-1.5 py-0.5 rounded ml-1 font-bold">YOU</span>' : ''}</span>
           <span class="text-[10px] text-slate-400 block font-mono">CEFR ${entry.cefr}</span>
         </div>
       </div>
