@@ -10,6 +10,11 @@ const AVATAR_CHOICES = [
   'av-sky', 'av-indigo', 'av-emerald', 'av-violet', 'av-amber', 'av-rose', 'av-cyan', 'av-teal'
 ];
 
+const AVATAR_EMOTICON_CHOICES = [
+  '😀', '😎', '🤓', '🥳', '🦊', '🐱', '🐼', '🦁',
+  '🦉', '🚀', '⚡', '🔥', '🎯', '🎧', '👑', '🌟'
+];
+
 const AVATAR_PALETTES = {
   'av-sky': { bg: 'from-sky-500 to-blue-600', text: 'text-white', ring: 'ring-sky-400/40' },
   'av-indigo': { bg: 'from-indigo-500 to-purple-600', text: 'text-white', ring: 'ring-indigo-400/40' },
@@ -94,11 +99,27 @@ function getAppIconSvg(name, extraClass = 'w-4 h-4') {
   return icons[name] || icons.zap;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function getAvatarMarkup(avatarKey, name = 'User', extraClass = 'w-8 h-8 rounded-xl') {
-  const p = AVATAR_PALETTES[avatarKey] || AVATAR_PALETTES['av-sky'];
-  const cleanName = String(name || 'VP').trim();
-  const initials = cleanName.split(/\s+/).slice(0, 2).map(s => s[0]).join('').toUpperCase() || 'VP';
-  return `<div class="${extraClass} bg-gradient-to-tr ${p.bg} ${p.text} ring-2 ${p.ring} flex items-center justify-center font-bold text-xs tracking-tight shadow-sm select-none">${initials}</div>`;
+  const val = String(avatarKey || 'av-sky').trim();
+  const safeName = String(name || 'VP').replace(/["'<>]/g, '').trim() || 'VP';
+
+  if (val.startsWith('emoji:')) {
+    const sym = val.slice(6).trim().slice(0, 8) || '😎';
+    return `<div class="${extraClass} bg-[#202432] ring-2 ring-indigo-400/35 flex items-center justify-center shadow-sm select-none leading-none flex-shrink-0"><span style="font-size:1.35em;line-height:1;">${escapeHtml(sym)}</span></div>`;
+  }
+
+  const p = AVATAR_PALETTES[val] || AVATAR_PALETTES['av-sky'];
+  const initials = safeName.split(/\s+/).slice(0, 2).map(s => s[0]).join('').toUpperCase() || 'VP';
+  return `<div class="${extraClass} bg-gradient-to-tr ${p.bg} ${p.text} ring-2 ${p.ring} flex items-center justify-center font-bold text-xs tracking-tight shadow-sm select-none flex-shrink-0">${escapeHtml(initials)}</div>`;
 }
 
 const CEFR_CONFIG = {
@@ -251,9 +272,11 @@ function hasRealImage(item) {
 function setOptionalImageFrame(frameId, item) {
   const frame = document.getElementById(frameId);
   if (!frame) return;
-  if (hasRealImage(item)) {
+  const rawImg = hasRealImage(item) ? String(item.image).trim() : '';
+  const safeUrl = /^(https?:\/\/|\/|\.\/|assets\/)/i.test(rawImg) ? escapeHtml(rawImg) : '';
+  if (safeUrl) {
     frame.classList.remove('hidden');
-    frame.innerHTML = `<img src="${item.image}" alt="vocab visual" loading="lazy" class="w-full h-full object-cover" onerror="this.parentElement.classList.add('hidden')">`;
+    frame.innerHTML = `<img src="${safeUrl}" alt="vocab visual" loading="lazy" class="w-full h-full object-cover" onerror="this.parentElement.classList.add('hidden')">`;
   } else {
     frame.classList.add('hidden');
     frame.innerHTML = '';

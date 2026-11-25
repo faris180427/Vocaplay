@@ -76,6 +76,12 @@ function renderQuests() {
 
   document.getElementById('quests-streak-title').textContent = `${currentUser.streak} ${currentUser.streak === 1 ? 'day' : 'days'} straight!`;
   document.getElementById('quests-date-label').textContent = dm.date;
+  const balEl = document.getElementById('shop-diamonds-balance');
+  const frzEl = document.getElementById('shop-freeze-count');
+  const shdEl = document.getElementById('shop-shield-count');
+  if (balEl) balEl.textContent = `${currentUser.coins || 0} Diamonds`;
+  if (frzEl) frzEl.textContent = `Dimiliki: ${currentUser.streakFreezes || 0}`;
+  if (shdEl) shdEl.textContent = `Dimiliki: ${currentUser.extraShields || 0}`;
 
   const days = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
   const weekGrid = document.getElementById('quests-week-grid');
@@ -132,6 +138,28 @@ function renderQuests() {
   });
 }
 
+function buyPowerUp(type) {
+  if (!currentUser) return;
+  const costs = { freeze: 30, shield: 20 };
+  const cost = costs[type] || 30;
+  if ((currentUser.coins || 0) < cost) {
+    playSfx('wrong');
+    showToast(`Diamonds belum cukup (butuh ${cost} Diamonds).`, '!');
+    return;
+  }
+  currentUser.coins -= cost;
+  if (type === 'freeze') {
+    currentUser.streakFreezes = (currentUser.streakFreezes || 0) + 1;
+    showToast('Streak Freeze berhasil dibeli!', '✓');
+  } else if (type === 'shield') {
+    currentUser.extraShields = (currentUser.extraShields || 0) + 1;
+    showToast('Extra Shield (+1 Nyawa) siap untuk game berikutnya!', '✓');
+  }
+  playSfx('fanfare');
+  saveCurrentAccountState();
+  refreshAllUI();
+}
+
 function claimDailyMission(id, xpBonus, coinsBonus) {
   if (!currentUser) return;
   normalizeDailyMission(currentUser);
@@ -141,11 +169,12 @@ function claimDailyMission(id, xpBonus, coinsBonus) {
   currentUser.weeklyXP += xpBonus;
   currentUser.monthlyXP += xpBonus;
   currentUser.coins += coinsBonus;
+  if (typeof activateXpBoost === 'function') activateXpBoost(10);
   saveCurrentAccountState();
   playSfx('fanfare');
   triggerConfetti();
   refreshAllUI();
-  showToast(`Reward claimed! ${xpBonus ? '+' + xpBonus + ' XP' : '+' + coinsBonus + ' Diamonds'}`, '✓');
+  showToast(`Hadiah diklaim! +2x XP Boost (10 Menit) aktif!`, '✓');
 }
 
 function updateWeakWordsUI() {

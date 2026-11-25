@@ -1,10 +1,10 @@
-const CACHE_NAME = 'vocaplay-studio-v1';
+const CACHE_NAME = 'vocaplay-studio-v4';
 const CORE_ASSETS = [
   './',
   './index.html',
+  './css/tailwind.css',
   './css/style.css',
   './vocab.js',
-  './vocab_4000.js',
   './cloud.js',
   './js/state.js',
   './js/audio.js',
@@ -14,14 +14,19 @@ const CORE_ASSETS = [
   './js/missions.js',
   './js/engine.js',
   './js/games.js',
+  './js/games_pro.js',
+  './js/path.js',
   './js/ui.js',
   './assets/logos/logo-concept-4-precision.svg',
   './manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
+  // Aset opsional yang belum ada tidak boleh menggagalkan seluruh instalasi.
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)).catch(() => {})
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.all(CORE_ASSETS.map((url) => cache.add(url).catch(() => null)))
+    )
   );
   self.skipWaiting();
 });
@@ -38,19 +43,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
-  // Network-first for Supabase API calls
-  if (req.url.includes('supabase.co')) return;
 
+  const url = new URL(req.url);
+  // Jangan pernah meng-cache API (leaderboard, kosakata, avatar) atau domain lain.
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+
+  // Network-first: kode terbaru selalu dimuat, cache hanya dipakai saat offline.
   event.respondWith(
-    caches.match(req).then((cached) => {
-      const networkFetch = fetch(req).then((res) => {
+    fetch(req)
+      .then((res) => {
         if (res && res.status === 200 && res.type === 'basic') {
           const clone = res.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
         }
         return res;
-      }).catch(() => cached);
-      return cached || networkFetch;
-    })
+      })
+      .catch(() => caches.match(req))
   );
 });
